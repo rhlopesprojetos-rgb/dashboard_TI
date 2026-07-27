@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Chamados TI — Distribuidora Lopes (PREVIEW)</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- TELA DE LOGIN -->
+<div class="tela-login" id="telaLogin">
+  <div class="card-login">
+    <img src="https://api.distribuidoralopes.com.br/v1/images/logo/s/B2B" alt="Distribuidora Lopes">
+    <h1>Dashboard de Chamados TI</h1>
+    <p class="subtitulo-login">Faça login para continuar</p>
+    <div class="erro-login" id="erroLogin"></div>
+    <input type="email" id="emailLogin" placeholder="Email" autocomplete="username">
+    <input type="password" id="senhaLogin" placeholder="Senha" autocomplete="current-password">
+    <button class="botao botao-primario" id="btnLogin" onclick="fazerLogin()" style="width:100%">Entrar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app" hidden>
+  <div class="layout-app">
+
+    <aside class="sidebar-app" id="sidebar">
+      <div class="marca-sidebar">
+        <img src="https://api.distribuidoralopes.com.br/v1/images/logo/s/B2B" alt="Distribuidora Lopes" class="logo-sidebar">
+        <span class="titulo-sidebar">Chamados TI</span>
+        <button class="botao-recolher" onclick="alternarSidebar()" title="Recolher menu">‹</button>
+      </div>
+      <nav class="nav-lista">
+        <div class="nav-item ativo" data-pagina="visaoGeral" onclick="irParaPaginaApp('visaoGeral')">
+          <span class="nav-icone">📊</span><span class="nav-texto">Visão Geral</span>
+        </div>
+        <div class="nav-item" data-pagina="lista" onclick="irParaPaginaApp('lista')">
+          <span class="nav-icone">📄</span><span class="nav-texto">Chamados</span>
+        </div>
+        <div class="nav-item nav-admin" data-pagina="admin" onclick="irParaPaginaApp('admin')" hidden>
+          <span class="nav-icone">⚙️</span><span class="nav-texto">Administração</span>
+        </div>
+      </nav>
+      <div class="rodape-sidebar">
+        <button class="botao botao-secundario botao-full" onclick="recarregarDados()">🔄 <span class="nav-texto">Atualizar dados</span></button>
+        <button class="botao botao-secundario botao-full" onclick="alternarTema()">
+          <span id="iconeTema">🌙</span> <span class="nav-texto">Tema</span>
+        </button>
+        <div class="usuario-sidebar">
+          <div class="avatar-usuario" id="avatarUsuario">?</div>
+          <div class="info-usuario">
+            <div class="nome-usuario" id="nomeUsuarioSidebar">—</div>
+            <div class="papel-usuario" id="papelUsuarioSidebar">—</div>
+          </div>
+        </div>
+        <button class="botao botao-secundario botao-full" onclick="abrirModalSenha()">🔑 <span class="nav-texto">Trocar senha</span></button>
+        <button class="botao botao-perigo botao-full" onclick="sair()">🚪 <span class="nav-texto">Sair</span></button>
+        <div class="versao-sidebar nav-texto">Versão 1.0.0 · Distribuidora Lopes</div>
+      </div>
+    </aside>
+
+    <main class="principal-app">
+
+      <!-- Barra de filtros compartilhada -->
+      <div class="filtros" id="filtrosBar">
+        <div class="campo">
+          <label>Período</label>
+          <select id="filtroPeriodo" onchange="aplicarFiltros()"><option value="">Todos os períodos</option></select>
+        </div>
+        <div class="campo">
+          <label>Unidade</label>
+          <select id="filtroUnidade" onchange="aplicarFiltros()"><option value="">Todas</option></select>
+        </div>
+        <div class="campo">
+          <label>Departamento</label>
+          <select id="filtroDepartamento" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+        </div>
+        <div class="campo">
+          <label>Atendente</label>
+          <select id="filtroAtendente" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+        </div>
+        <div class="campo" style="display:flex; align-items:flex-end;">
+          <button class="botao botao-secundario" onclick="limparFiltros()" style="width:100%">Limpar filtros</button>
+        </div>
+      </div>
+
+      <!-- PÁGINA: VISÃO GERAL -->
+      <div class="pagina-app ativa" id="pg-visaoGeral">
+        <div class="conteudo">
+          <div class="secao-header"><h2>Visão Geral</h2></div>
+
+          <div class="cards-resumo" id="kpisVisaoGeral"></div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Satisfação dos Atendimentos</h3>
+              <canvas id="chSatisfacao"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Distribuição por Unidade</h3>
+              <canvas id="chUnidadePizza"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Qtd. Chamados Atendidos por Técnico</h3>
+              <canvas id="chQtdAtendente"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Tempo Médio de Atendimento por Técnico</h3>
+              <canvas id="chTempoAtendente"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Tempo Total por Departamento</h3>
+              <canvas id="chTempoDepartamento"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Tempo Médio por Unidade</h3>
+              <canvas id="chTempoUnidade"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PÁGINA: LISTA DE CHAMADOS -->
+      <div class="pagina-app" id="pg-lista">
+        <div class="conteudo">
+          <div class="secao">
+            <div class="secao-header">
+              <h2>Chamados</h2>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="buscaLista" placeholder="Buscar por ID, solicitante ou assunto..." oninput="aplicarFiltros()" style="padding:8px 12px; border:1px solid var(--cor-borda); border-radius:8px; font-size:13px; width:280px;">
+                <button class="botao botao-secundario" onclick="exportarCsv()">Exportar CSV</button>
+              </div>
+            </div>
+            <div class="tabela-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Assunto</th><th>Solicitante</th><th>Departamento</th>
+                    <th>Unidade</th><th>Atendente</th><th>Situação</th><th>Prioridade</th>
+                    <th>Criado em</th><th>Tempo</th><th>Satisfação</th>
+                  </tr>
+                </thead>
+                <tbody id="listaCorpo"></tbody>
+              </table>
+            </div>
+            <div id="listaVazia" class="vazio" hidden>Nenhum chamado encontrado com os filtros atuais.</div>
+            <div class="paginacao" id="listaPaginacao"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PÁGINA: ADMINISTRAÇÃO -->
+      <div class="pagina-app" id="pg-admin">
+        <div class="conteudo">
+          <div class="secao">
+            <div class="secao-header">
+              <h2>Usuários do painel</h2>
+              <button class="botao botao-primario" onclick="abrirModalNovoUsuario()">+ Novo usuário</button>
+            </div>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Email</th><th>Papel</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody id="usuariosCorpo"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODAL: TROCAR SENHA -->
+<div class="modal-overlay" id="modalSenha" hidden>
+  <div class="modal-card">
+    <h3>Trocar senha</h3>
+    <input type="password" id="novaSenhaInput" placeholder="Nova senha (mín. 6 caracteres)">
+    <div class="erro-login" id="erroSenha"></div>
+    <div class="modal-acoes">
+      <button class="botao botao-secundario" onclick="fecharModal('modalSenha')">Cancelar</button>
+      <button class="botao botao-primario" onclick="confirmarTrocaSenha()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO USUÁRIO -->
+<div class="modal-overlay" id="modalNovoUsuario" hidden>
+  <div class="modal-card">
+    <h3>Novo usuário</h3>
+    <input type="text" id="novoNomeInput" placeholder="Nome completo">
+    <input type="email" id="novoEmailInput" placeholder="Email">
+    <select id="novoPapelInput">
+      <option value="usuario">Usuário (somente visualização)</option>
+      <option value="admin">Administrador</option>
+    </select>
+    <div class="erro-login" id="erroNovoUsuario"></div>
+    <div class="modal-acoes">
+      <button class="botao botao-secundario" onclick="fecharModal('modalNovoUsuario')">Cancelar</button>
+      <button class="botao botao-primario" onclick="confirmarNovoUsuario()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-carregando" id="overlayCarregando"><div class="spinner"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/dados_mock.js"></script>
+<script src="js/app.js"></script>
+<script src="js/preview_shim.js"></script>
+</body>
+</html>

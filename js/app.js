@@ -1,0 +1,580 @@
+// ------------------------- ESTADO GLOBAL -------------------------
+
+let TOKEN = null;
+let USUARIO = null;
+let dadosOriginais = [];
+let dadosFiltrados = [];
+let paginaAtual = 1;
+const ITENS_POR_PAGINA = 20;
+const CHAVE_TOKEN = 'ti_lopes_token';
+const CHAVE_TEMA = 'ti_lopes_tema';
+const CHAVE_SIDEBAR = 'ti_lopes_sidebar_recolhida';
+
+const CORES = {
+  primaria: '#E8410A',
+  escura: '#1a2744',
+  bom: '#1f9d55',
+  neutro: '#f0a500',
+  ruim: '#e53e3e',
+  paleta: ['#E8410A', '#1a2744', '#4453d6', '#0d9488', '#b5720a', '#9090a8', '#7c3aed', '#0891b2']
+};
+
+let charts = {};
+
+// ------------------------- INICIALIZAÇÃO -------------------------
+
+document.addEventListener('DOMContentLoaded', () => {
+  const temaSalvo = localStorage.getItem(CHAVE_TEMA);
+  if (temaSalvo === 'escuro') aplicarTema('escuro');
+
+  if (localStorage.getItem(CHAVE_SIDEBAR) === '1') {
+    document.getElementById('sidebar').classList.add('recolhida');
+  }
+
+  const tokenSalvo = localStorage.getItem(CHAVE_TOKEN);
+  if (tokenSalvo) {
+    TOKEN = tokenSalvo;
+    mostrarApp();
+  }
+
+  document.getElementById('senhaLogin').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
+  document.getElementById('emailLogin').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
+});
+
+// ------------------------- LOGIN / LOGOUT -------------------------
+
+async function fazerLogin() {
+  const email = document.getElementById('emailLogin').value.trim();
+  const senha = document.getElementById('senhaLogin').value;
+  const erroEl = document.getElementById('erroLogin');
+  erroEl.classList.remove('visivel');
+  if (!email || !senha) return;
+
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'login', email, senha });
+    if (resp.success) {
+      TOKEN = resp.token;
+      USUARIO = resp.usuario;
+      localStorage.setItem(CHAVE_TOKEN, TOKEN);
+      mostrarApp();
+    } else {
+      erroEl.textContent = resp.message || 'Email ou senha incorretos.';
+      erroEl.classList.add('visivel');
+    }
+  } catch (err) {
+    erroEl.textContent = 'Erro de conexão. Tente novamente.';
+    erroEl.classList.add('visivel');
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+function sair() {
+  localStorage.removeItem(CHAVE_TOKEN);
+  TOKEN = null;
+  USUARIO = null;
+  document.getElementById('app').hidden = true;
+  document.getElementById('telaLogin').hidden = false;
+}
+
+function mostrarApp() {
+  document.getElementById('telaLogin').hidden = true;
+  document.getElementById('app').hidden = false;
+  carregarDados();
+}
+
+// ------------------------- NAVEGAÇÃO ENTRE PÁGINAS -------------------------
+
+function irParaPaginaApp(nome) {
+  document.querySelectorAll('.pagina-app').forEach(p => p.classList.toggle('ativa', p.id === 'pg-' + nome));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('ativo', n.dataset.pagina === nome));
+  if (nome === 'admin') carregarUsuarios();
+}
+
+function alternarSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('recolhida');
+  localStorage.setItem(CHAVE_SIDEBAR, sidebar.classList.contains('recolhida') ? '1' : '0');
+}
+
+function alternarTema() {
+  const atual = document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro';
+  aplicarTema(atual);
+  localStorage.setItem(CHAVE_TEMA, atual);
+  renderizarTudo(); // recria gráficos pra pegar cores atualizadas do tema, se necessário
+}
+
+function aplicarTema(tema) {
+  if (tema === 'escuro') {
+    document.documentElement.setAttribute('data-tema', 'escuro');
+    document.getElementById('iconeTema').textContent = '☀️';
+  } else {
+    document.documentElement.removeAttribute('data-tema');
+    document.getElementById('iconeTema').textContent = '🌙';
+  }
+}
+
+// ------------------------- BACKEND (com retry) -------------------------
+
+async function chamarBackend(payload, tentativas = 3) {
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(Object.assign({ token: TOKEN }, payload))
+      });
+      return await resp.json();
+    } catch (err) {
+      if (tentativa === tentativas) throw err;
+      await new Promise(r => setTimeout(r, 600 * tentativa));
+    }
+  }
+}
+
+async function carregarDados() {
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'listarDados' });
+    if (!resp.success) {
+      alert(resp.message || 'Sessão expirada. Faça login novamente.');
+      sair();
+      return;
+    }
+    dadosOriginais = resp.dados || [];
+    USUARIO = resp.usuario || USUARIO;
+    atualizarInfoUsuario();
+    popularFiltros();
+    aplicarFiltros();
+  } catch (err) {
+    alert('Erro ao carregar dados. Verifique sua conexão.');
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+function recarregarDados() { carregarDados(); }
+
+function atualizarInfoUsuario() {
+  if (!USUARIO) return;
+  document.getElementById('nomeUsuarioSidebar').textContent = USUARIO.nome;
+  document.getElementById('papelUsuarioSidebar').textContent = USUARIO.papel === 'admin' ? 'Administrador' : 'Usuário';
+  const avatar = document.getElementById('avatarUsuario');
+  avatar.textContent = (USUARIO.nome || '?').trim().charAt(0).toUpperCase();
+  avatar.className = 'avatar-usuario ' + (USUARIO.papel === 'admin' ? 'admin' : 'usuario');
+  document.querySelector('.nav-admin').hidden = USUARIO.papel !== 'admin';
+}
+
+// ------------------------- FILTROS -------------------------
+
+function popularFiltros() {
+  const periodos = [...new Set(dadosOriginais.map(d => d._mesAno).filter(Boolean))].sort().reverse();
+  preencherSelect('filtroPeriodo', periodos, rotuloPeriodo, 'Todos os períodos');
+
+  const unidades = [...new Set(dadosOriginais.map(d => d.unidade).filter(Boolean))].sort();
+  preencherSelect('filtroUnidade', unidades, v => v, 'Todas');
+
+  const departamentos = [...new Set(dadosOriginais.map(d => d.departamento).filter(Boolean))].sort();
+  preencherSelect('filtroDepartamento', departamentos, v => v, 'Todos');
+
+  const atendentes = [...new Set(dadosOriginais.map(d => d.atendente).filter(Boolean))].sort();
+  preencherSelect('filtroAtendente', atendentes, v => v, 'Todos');
+}
+
+function preencherSelect(id, valores, rotuloFn, rotuloVazio) {
+  const sel = document.getElementById(id);
+  const valorAtual = sel.value;
+  sel.innerHTML = `<option value="">${rotuloVazio}</option>` + valores.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(rotuloFn(v))}</option>`).join('');
+  if (valores.includes(valorAtual)) sel.value = valorAtual;
+}
+
+function rotuloPeriodo(mesAno) {
+  const [ano, mes] = mesAno.split('-');
+  const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return nomes[parseInt(mes, 10) - 1] + '/' + ano;
+}
+
+function aplicarFiltros() {
+  const periodo = document.getElementById('filtroPeriodo').value;
+  const unidade = document.getElementById('filtroUnidade').value;
+  const departamento = document.getElementById('filtroDepartamento').value;
+  const atendente = document.getElementById('filtroAtendente').value;
+  const busca = (document.getElementById('buscaLista').value || '').trim().toLowerCase();
+
+  dadosFiltrados = dadosOriginais.filter(d => {
+    if (periodo && d._mesAno !== periodo) return false;
+    if (unidade && d.unidade !== unidade) return false;
+    if (departamento && d.departamento !== departamento) return false;
+    if (atendente && d.atendente !== atendente) return false;
+    if (busca) {
+      const alvo = `${d.id} ${d.solicitante} ${d.assunto}`.toLowerCase();
+      if (alvo.indexOf(busca) === -1) return false;
+    }
+    return true;
+  });
+
+  paginaAtual = 1;
+  renderizarTudo();
+}
+
+function limparFiltros() {
+  document.getElementById('filtroPeriodo').value = '';
+  document.getElementById('filtroUnidade').value = '';
+  document.getElementById('filtroDepartamento').value = '';
+  document.getElementById('filtroAtendente').value = '';
+  document.getElementById('buscaLista').value = '';
+  aplicarFiltros();
+}
+
+// ------------------------- RENDERIZAÇÃO -------------------------
+
+function renderizarTudo() {
+  renderizarKpis();
+  renderizarGraficoSatisfacao();
+  renderizarGraficoUnidadePizza();
+  renderizarGraficoQtdAtendente();
+  renderizarGraficoTempoAtendente();
+  renderizarGraficoTempoDepartamento();
+  renderizarGraficoTempoUnidade();
+  renderizarLista();
+}
+
+function renderizarKpis() {
+  const total = dadosFiltrados.length;
+  const concluidos = dadosFiltrados.filter(d => d.situacao === 'concluido').length;
+  const temposValidos = dadosFiltrados.map(d => d._tempoMin).filter(v => v !== null && v !== undefined);
+  const mediaMin = temposValidos.length ? temposValidos.reduce((a, b) => a + b, 0) / temposValidos.length : null;
+
+  const comSatisfacao = dadosFiltrados.filter(d => d._satisfacao);
+  const boaPerc = comSatisfacao.length ? Math.round(100 * comSatisfacao.filter(d => d._satisfacao === 'bom').length / comSatisfacao.length) : null;
+
+  document.getElementById('kpisVisaoGeral').innerHTML = `
+    <div class="card-resumo"><div class="rotulo">Qtd. Chamados</div><div class="valor">${total.toLocaleString('pt-BR')}</div></div>
+    <div class="card-resumo"><div class="rotulo">Concluídos</div><div class="valor">${concluidos.toLocaleString('pt-BR')}</div></div>
+    <div class="card-resumo"><div class="rotulo">Média de Atendimento</div><div class="valor laranja">${mediaMin !== null ? formatarDuracao(mediaMin) : '—'}</div></div>
+    <div class="card-resumo"><div class="rotulo">Satisfação Boa</div><div class="valor">${boaPerc !== null ? boaPerc + '%' : '—'}</div></div>
+  `;
+}
+
+function renderizarGraficoSatisfacao() {
+  const comSatisfacao = dadosFiltrados.filter(d => d._satisfacao);
+  const contagem = { bom: 0, neutro: 0, ruim: 0 };
+  comSatisfacao.forEach(d => contagem[d._satisfacao]++);
+
+  criarOuAtualizarChart('chSatisfacao', 'pie', {
+    labels: ['Bom, estou satisfeito', 'Nem satisfeito, nem insatisfeito', 'Ruim, não estou satisfeito'],
+    datasets: [{ data: [contagem.bom, contagem.neutro, contagem.ruim], backgroundColor: [CORES.bom, CORES.neutro, CORES.ruim] }]
+  }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } });
+}
+
+function renderizarGraficoUnidadePizza() {
+  const contagem = agrupar(dadosFiltrados, 'unidade');
+  const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
+
+  criarOuAtualizarChart('chUnidadePizza', 'pie', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.paleta }]
+  }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } });
+}
+
+function renderizarGraficoQtdAtendente() {
+  const contagem = agrupar(dadosFiltrados, 'atendente');
+  const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  criarOuAtualizarChart('chQtdAtendente', 'bar', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.primaria }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+}
+
+function renderizarGraficoTempoAtendente() {
+  const grupos = agruparValores(dadosFiltrados, 'atendente', '_tempoMin');
+  const entradas = Object.entries(grupos)
+    .map(([nome, vals]) => [nome, vals.reduce((a, b) => a + b, 0) / vals.length])
+    .sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  criarOuAtualizarChart('chTempoAtendente', 'bar', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.escura }]
+  }, {
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
+  });
+}
+
+function renderizarGraficoTempoDepartamento() {
+  const grupos = agruparValores(dadosFiltrados, 'departamento', '_tempoMin');
+  const entradas = Object.entries(grupos)
+    .map(([nome, vals]) => [nome, vals.reduce((a, b) => a + b, 0)])
+    .sort((a, b) => b[1] - a[1]);
+
+  criarOuAtualizarChart('chTempoDepartamento', 'bar', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.paleta[2] }]
+  }, {
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
+  });
+}
+
+function renderizarGraficoTempoUnidade() {
+  const grupos = agruparValores(dadosFiltrados, 'unidade', '_tempoMin');
+  const entradas = Object.entries(grupos)
+    .map(([nome, vals]) => [nome, vals.reduce((a, b) => a + b, 0) / vals.length])
+    .sort((a, b) => b[1] - a[1]);
+
+  criarOuAtualizarChart('chTempoUnidade', 'bar', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.paleta[3] }]
+  }, {
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
+  });
+}
+
+function criarOuAtualizarChart(canvasId, tipo, data, options) {
+  if (typeof Chart === 'undefined') return; // CDN bloqueado — não trava o resto do painel
+  if (charts[canvasId]) charts[canvasId].destroy();
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  charts[canvasId] = new Chart(ctx, {
+    type: tipo,
+    data: data,
+    options: Object.assign({ responsive: true, maintainAspectRatio: true }, options)
+  });
+}
+
+function agrupar(lista, campo) {
+  const contagem = {};
+  lista.forEach(d => {
+    const chave = d[campo] || 'Não informado';
+    contagem[chave] = (contagem[chave] || 0) + 1;
+  });
+  return contagem;
+}
+
+function agruparValores(lista, campoGrupo, campoValor) {
+  const grupos = {};
+  lista.forEach(d => {
+    if (d[campoValor] === null || d[campoValor] === undefined) return;
+    const chave = d[campoGrupo] || 'Não informado';
+    if (!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push(d[campoValor]);
+  });
+  return grupos;
+}
+
+function formatarDuracao(minutos) {
+  if (minutos === null || minutos === undefined || isNaN(minutos)) return '—';
+  const totalSeg = Math.round(minutos * 60);
+  const h = Math.floor(totalSeg / 3600);
+  const m = Math.floor((totalSeg % 3600) / 60);
+  const s = totalSeg % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+// ------------------------- LISTA DE CHAMADOS -------------------------
+
+function renderizarLista() {
+  const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const pagina = dadosFiltrados.slice(inicio, inicio + ITENS_POR_PAGINA);
+  document.getElementById('listaVazia').hidden = dadosFiltrados.length !== 0;
+
+  document.getElementById('listaCorpo').innerHTML = pagina.map(d => `
+    <tr>
+      <td>${escapeHtml(d.id)}</td>
+      <td>${escapeHtml(d.assunto || '—')}</td>
+      <td>${escapeHtml(d.solicitante || '—')}</td>
+      <td>${escapeHtml(d.departamento)}</td>
+      <td>${escapeHtml(d.unidade)}</td>
+      <td>${escapeHtml(d.atendente)}</td>
+      <td>${badgeSituacao(d.situacao)}</td>
+      <td>${escapeHtml(d.prioridade)}</td>
+      <td>${d.criadoEm ? new Date(d.criadoEm).toLocaleString('pt-BR') : '—'}</td>
+      <td>${formatarDuracao(d._tempoMin)}</td>
+      <td>${rotuloSatisfacao(d._satisfacao)}</td>
+    </tr>
+  `).join('');
+  renderizarPaginacao();
+}
+
+function badgeSituacao(situacao) {
+  const classe = situacao === 'concluido' ? 'badge-concluido' : situacao === 'cancelado' ? 'badge-cancelado' : situacao === 'atribuido' ? 'badge-atribuido' : 'badge-aberto';
+  return `<span class="badge ${classe}">${escapeHtml(situacao || 'aberto')}</span>`;
+}
+
+function rotuloSatisfacao(valor) {
+  if (valor === 'bom') return '🟢 Bom';
+  if (valor === 'neutro') return '🟡 Neutro';
+  if (valor === 'ruim') return '🔴 Ruim';
+  return '—';
+}
+
+function renderizarPaginacao() {
+  const totalPaginas = Math.max(1, Math.ceil(dadosFiltrados.length / ITENS_POR_PAGINA));
+  const el = document.getElementById('listaPaginacao');
+  let html = `<button ${paginaAtual === 1 ? 'disabled' : ''} onclick="mudarPagina(${paginaAtual - 1})">‹</button>`;
+  for (let p = 1; p <= totalPaginas; p++) {
+    if (p === 1 || p === totalPaginas || Math.abs(p - paginaAtual) <= 1) {
+      html += `<button class="${p === paginaAtual ? 'ativo' : ''}" onclick="mudarPagina(${p})">${p}</button>`;
+    } else if (Math.abs(p - paginaAtual) === 2) {
+      html += `<span>…</span>`;
+    }
+  }
+  html += `<button ${paginaAtual === totalPaginas ? 'disabled' : ''} onclick="mudarPagina(${paginaAtual + 1})">›</button>`;
+  el.innerHTML = html;
+}
+
+function mudarPagina(p) {
+  const totalPaginas = Math.max(1, Math.ceil(dadosFiltrados.length / ITENS_POR_PAGINA));
+  if (p < 1 || p > totalPaginas) return;
+  paginaAtual = p;
+  renderizarLista();
+}
+
+function exportarCsv() {
+  if (!dadosFiltrados.length) { alert('Não há dados para exportar.'); return; }
+  const colunas = ['id', 'assunto', 'solicitante', 'departamento', 'unidade', 'atendente', 'situacao', 'prioridade', 'criadoEm', 'concluidoEm'];
+  const linhas = [colunas.join(',')];
+  dadosFiltrados.forEach(d => linhas.push(colunas.map(c => `"${String(d[c] ?? '').replace(/"/g, '""')}"`).join(',')));
+  const blob = new Blob(['\uFEFF' + linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `chamados_ti_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ------------------------- ADMINISTRAÇÃO DE USUÁRIOS -------------------------
+
+async function carregarUsuarios() {
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'listarUsuarios' });
+    if (!resp.success) { alert(resp.message || 'Não foi possível carregar os usuários.'); return; }
+    renderizarUsuarios(resp.usuarios || []);
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+function renderizarUsuarios(usuarios) {
+  document.getElementById('usuariosCorpo').innerHTML = usuarios.map(u => `
+    <tr>
+      <td>${escapeHtml(u.nome)}</td>
+      <td>${escapeHtml(u.email)}</td>
+      <td>${u.papel === 'admin' ? 'Administrador' : 'Usuário'}</td>
+      <td>${u.ativo ? '<span class="badge badge-concluido">Ativo</span>' : '<span class="badge badge-cancelado">Desativado</span>'}</td>
+      <td style="display:flex; gap:6px;">
+        <button class="botao botao-secundario" onclick="alternarStatusUsuario('${escapeAttr(u.email)}', ${!u.ativo})">${u.ativo ? 'Desativar' : 'Ativar'}</button>
+        <button class="botao botao-secundario" onclick="resetarSenhaUsuario('${escapeAttr(u.email)}')">Resetar senha</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function alternarStatusUsuario(email, novoStatus) {
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'atualizarUsuario', email, ativo: novoStatus });
+    if (!resp.success) alert(resp.message || 'Erro ao atualizar usuário.');
+    carregarUsuarios();
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+async function resetarSenhaUsuario(email) {
+  if (!confirm(`Resetar a senha de ${email}? Uma nova senha temporária será gerada.`)) return;
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'resetarSenha', email });
+    if (resp.success) alert(`Nova senha temporária para ${email}:\n\n${resp.senhaTemporaria}\n\nEnvie com segurança e peça pra trocar no primeiro acesso.`);
+    else alert(resp.message || 'Erro ao resetar senha.');
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+function abrirModalNovoUsuario() {
+  document.getElementById('novoNomeInput').value = '';
+  document.getElementById('novoEmailInput').value = '';
+  document.getElementById('novoPapelInput').value = 'usuario';
+  document.getElementById('erroNovoUsuario').classList.remove('visivel');
+  document.getElementById('modalNovoUsuario').hidden = false;
+}
+
+async function confirmarNovoUsuario() {
+  const nome = document.getElementById('novoNomeInput').value.trim();
+  const email = document.getElementById('novoEmailInput').value.trim();
+  const papel = document.getElementById('novoPapelInput').value;
+  const erroEl = document.getElementById('erroNovoUsuario');
+  erroEl.classList.remove('visivel');
+  if (!nome || !email) { erroEl.textContent = 'Preencha nome e email.'; erroEl.classList.add('visivel'); return; }
+
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'criarUsuario', nome, email, papel });
+    if (resp.success) {
+      fecharModal('modalNovoUsuario');
+      alert(`Usuário criado!\n\nEmail: ${email}\nSenha temporária: ${resp.senhaTemporaria}\n\nEnvie com segurança e peça pra trocar no primeiro acesso.`);
+      carregarUsuarios();
+    } else {
+      erroEl.textContent = resp.message || 'Erro ao criar usuário.';
+      erroEl.classList.add('visivel');
+    }
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+// ------------------------- TROCAR SENHA -------------------------
+
+function abrirModalSenha() {
+  document.getElementById('novaSenhaInput').value = '';
+  document.getElementById('erroSenha').classList.remove('visivel');
+  document.getElementById('modalSenha').hidden = false;
+}
+
+async function confirmarTrocaSenha() {
+  const novaSenha = document.getElementById('novaSenhaInput').value;
+  const erroEl = document.getElementById('erroSenha');
+  erroEl.classList.remove('visivel');
+  if (novaSenha.length < 6) { erroEl.textContent = 'A senha precisa ter ao menos 6 caracteres.'; erroEl.classList.add('visivel'); return; }
+
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'trocarSenha', novaSenha });
+    if (resp.success) {
+      fecharModal('modalSenha');
+      alert('Senha alterada com sucesso!');
+    } else {
+      erroEl.textContent = resp.message || 'Erro ao trocar senha.';
+      erroEl.classList.add('visivel');
+    }
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+function fecharModal(id) {
+  document.getElementById(id).hidden = true;
+}
+
+// ------------------------- HELPERS -------------------------
+
+function mostrarCarregando(mostrar) {
+  document.getElementById('overlayCarregando').classList.toggle('visivel', mostrar);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str === null || str === undefined ? '' : String(str);
+  return div.innerHTML;
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/'/g, "\\'");
+}
