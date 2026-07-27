@@ -230,37 +230,47 @@ function limparFiltros() {
 // ------------------------- RENDERIZAÇÃO -------------------------
 
 function renderizarTudo() {
-  renderizarKpis();
-  renderizarGraficoSatisfacao();
-  renderizarGraficoUnidadePizza();
-  renderizarGraficoQtdAtendente();
-  renderizarGraficoTempoAtendente();
-  renderizarGraficoTempoDepartamento();
-  renderizarGraficoTempoUnidade();
-  renderizarLista();
+  // "Relatório" = tudo que está filtrado, MENOS os chamados cancelados.
+  // Cancelados continuam visíveis na aba Chamados (lista bruta), mas não
+  // entram em nenhum KPI/gráfico da Visão Geral.
+  const relatorio = dadosFiltrados.filter(d => d.situacao !== 'cancelado');
+
+  renderizarKpis(relatorio);
+  renderizarGraficoSatisfacao(relatorio);
+  renderizarGraficoUnidadePizza(relatorio);
+  renderizarGraficoQtdAtendente(relatorio);
+  renderizarGraficoTempoAtendente(relatorio);
+  renderizarGraficoTempoDepartamento(relatorio);
+  renderizarGraficoTempoUnidade(relatorio);
+  renderizarGraficoQtdDepartamento(relatorio);
+  renderizarGraficoTipoChamado(relatorio);
+  renderizarGraficoTopSolicitantes(relatorio);
+  renderizarGraficoNegativasDepartamento(relatorio);
+  renderizarLista(); // usa dadosFiltrados (todas as situações, inclusive cancelados)
 }
 
-function renderizarKpis() {
-  const total = dadosFiltrados.length;
-  const concluidos = dadosFiltrados.filter(d => d.situacao === 'concluido').length;
-  const temposValidos = dadosFiltrados.map(d => d._tempoMin).filter(v => v !== null && v !== undefined);
+function renderizarKpis(relatorio) {
+  const total = relatorio.length;
+  const concluidos = relatorio.filter(d => d.situacao === 'concluido').length;
+  const temposValidos = relatorio.map(d => d._tempoMin).filter(v => v !== null && v !== undefined);
   const mediaMin = temposValidos.length ? temposValidos.reduce((a, b) => a + b, 0) / temposValidos.length : null;
 
-  const comSatisfacao = dadosFiltrados.filter(d => d._satisfacao);
-  const boaPerc = comSatisfacao.length ? Math.round(100 * comSatisfacao.filter(d => d._satisfacao === 'bom').length / comSatisfacao.length) : null;
+  const negativas = relatorio.filter(d => d._satisfacao && d._satisfacao !== 'bom').length;
+  const boaPerc = total ? Math.round(100 * (total - negativas) / total) : null;
+  const negativasPerc = total ? Math.round(100 * negativas / total) : null;
 
   document.getElementById('kpisVisaoGeral').innerHTML = `
     <div class="card-resumo"><div class="rotulo">Qtd. Chamados</div><div class="valor">${total.toLocaleString('pt-BR')}</div></div>
     <div class="card-resumo"><div class="rotulo">Concluídos</div><div class="valor">${concluidos.toLocaleString('pt-BR')}</div></div>
     <div class="card-resumo"><div class="rotulo">Média de Atendimento</div><div class="valor laranja">${mediaMin !== null ? formatarDuracao(mediaMin) : '—'}</div></div>
     <div class="card-resumo"><div class="rotulo">Satisfação Boa</div><div class="valor">${boaPerc !== null ? boaPerc + '%' : '—'}</div></div>
+    <div class="card-resumo"><div class="rotulo">Avaliações Negativas</div><div class="valor vermelho">${negativas.toLocaleString('pt-BR')}${negativasPerc !== null ? ' (' + negativasPerc + '%)' : ''}</div></div>
   `;
 }
 
-function renderizarGraficoSatisfacao() {
-  const comSatisfacao = dadosFiltrados.filter(d => d._satisfacao);
+function renderizarGraficoSatisfacao(relatorio) {
   const contagem = { bom: 0, neutro: 0, ruim: 0 };
-  comSatisfacao.forEach(d => contagem[d._satisfacao]++);
+  relatorio.forEach(d => { if (d._satisfacao) contagem[d._satisfacao]++; });
 
   criarOuAtualizarChart('chSatisfacao', 'pie', {
     labels: ['Bom, estou satisfeito', 'Nem satisfeito, nem insatisfeito', 'Ruim, não estou satisfeito'],
@@ -268,8 +278,8 @@ function renderizarGraficoSatisfacao() {
   }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } });
 }
 
-function renderizarGraficoUnidadePizza() {
-  const contagem = agrupar(dadosFiltrados, 'unidade');
+function renderizarGraficoUnidadePizza(relatorio) {
+  const contagem = agrupar(relatorio, 'unidade');
   const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
 
   criarOuAtualizarChart('chUnidadePizza', 'pie', {
@@ -278,8 +288,9 @@ function renderizarGraficoUnidadePizza() {
   }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } });
 }
 
-function renderizarGraficoQtdAtendente() {
-  const contagem = agrupar(dadosFiltrados, 'atendente');
+function renderizarGraficoQtdAtendente(relatorio) {
+  const concluidos = relatorio.filter(d => d.situacao === 'concluido');
+  const contagem = agrupar(concluidos, 'atendente');
   const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   criarOuAtualizarChart('chQtdAtendente', 'bar', {
@@ -288,8 +299,8 @@ function renderizarGraficoQtdAtendente() {
   }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
 }
 
-function renderizarGraficoTempoAtendente() {
-  const grupos = agruparValores(dadosFiltrados, 'atendente', '_tempoMin');
+function renderizarGraficoTempoAtendente(relatorio) {
+  const grupos = agruparValores(relatorio, 'atendente', '_tempoMin');
   const entradas = Object.entries(grupos)
     .map(([nome, vals]) => [nome, vals.reduce((a, b) => a + b, 0) / vals.length])
     .sort((a, b) => b[1] - a[1]).slice(0, 10);
@@ -303,8 +314,8 @@ function renderizarGraficoTempoAtendente() {
   });
 }
 
-function renderizarGraficoTempoDepartamento() {
-  const grupos = agruparValores(dadosFiltrados, 'departamento', '_tempoMin');
+function renderizarGraficoTempoDepartamento(relatorio) {
+  const grupos = agruparValores(relatorio, 'departamento', '_tempoMin');
   const entradas = Object.entries(grupos)
     .map(([nome, vals]) => [nome, vals.reduce((a, b) => a + b, 0)])
     .sort((a, b) => b[1] - a[1]);
@@ -318,8 +329,8 @@ function renderizarGraficoTempoDepartamento() {
   });
 }
 
-function renderizarGraficoTempoUnidade() {
-  const grupos = agruparValores(dadosFiltrados, 'unidade', '_tempoMin');
+function renderizarGraficoTempoUnidade(relatorio) {
+  const grupos = agruparValores(relatorio, 'unidade', '_tempoMin');
   const entradas = Object.entries(grupos)
     .map(([nome, vals]) => [nome, vals.reduce((a, b) => a + b, 0) / vals.length])
     .sort((a, b) => b[1] - a[1]);
@@ -331,6 +342,55 @@ function renderizarGraficoTempoUnidade() {
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
     scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
   });
+}
+
+function renderizarGraficoQtdDepartamento(relatorio) {
+  const contagem = agrupar(relatorio, 'departamento');
+  const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
+
+  criarOuAtualizarChart('chQtdDepartamento', 'bar', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.paleta[4] }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+}
+
+function renderizarGraficoTipoChamado(relatorio) {
+  const contagem = agrupar(relatorio, 'tipo');
+  const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]).slice(0, 12);
+
+  criarOuAtualizarChart('chTipoChamado', 'bar', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.paleta[5] }]
+  }, {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true } }
+  });
+}
+
+function renderizarGraficoTopSolicitantes(relatorio) {
+  const contagem = agrupar(relatorio, 'solicitante');
+  const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  criarOuAtualizarChart('chTopSolicitantes', 'bar', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.paleta[6] }]
+  }, {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true } }
+  });
+}
+
+function renderizarGraficoNegativasDepartamento(relatorio) {
+  const negativas = relatorio.filter(d => d._satisfacao && d._satisfacao !== 'bom');
+  const contagem = agrupar(negativas, 'departamento');
+  const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
+
+  criarOuAtualizarChart('chNegativasDepartamento', 'bar', {
+    labels: entradas.map(e => e[0]),
+    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.ruim }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } });
 }
 
 function criarOuAtualizarChart(canvasId, tipo, data, options) {
