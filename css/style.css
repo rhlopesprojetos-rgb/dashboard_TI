@@ -91,12 +91,13 @@ body { margin: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sa
 .filtros .campo label { font-size: 11px; text-transform: uppercase; color: var(--cor-texto-sec); display: block; margin-bottom: 4px; }
 .filtros input, .filtros select { width: 100%; padding: 8px 10px; border: 1px solid var(--cor-borda); border-radius: 8px; font-size: 13px; background: var(--cor-fundo); color: var(--cor-texto); }
 .conteudo { max-width: 1400px; margin: 0 auto; padding: 24px; }
-.cards-resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.cards-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 20px; }
 .card-resumo { background: var(--cor-sidebar); border-radius: var(--radius); border: 1px solid var(--cor-borda); box-shadow: var(--sombra); padding: 18px 20px; }
 .card-resumo .rotulo { font-size: 12px; color: var(--cor-texto-sec); margin-bottom: 6px; }
 .card-resumo .valor { font-size: 24px; font-weight: 700; color: var(--cor-escura); }
 [data-tema="escuro"] .card-resumo .valor { color: var(--cor-texto); }
 .card-resumo .valor.laranja { color: var(--cor-primaria); }
+.card-resumo .valor.vermelho { color: var(--cor-erro); }
 
 .grade-graficos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }
 .card-grafico { background: var(--cor-sidebar); border-radius: var(--radius); border: 1px solid var(--cor-borda); box-shadow: var(--sombra); padding: 18px 20px; min-height: 320px; }
