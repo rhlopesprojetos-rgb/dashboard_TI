@@ -399,7 +399,7 @@ function renderizarTabelaNegativas(relatorioSatisfacao) {
       <td>${escapeHtml(d.atendente)}</td>
       <td>${escapeHtml(d.solicitante)}</td>
       <td>${escapeHtml(d.assunto || '—')}</td>
-      <td>${escapeHtml(d.comentarioSatisfacao || '—')}</td>
+      <td>${escapeHtml(d.ultimaResposta || '—')}</td>
       <td>${formatarDuracao(d._tempoMin)}</td>
       <td>${rotuloSatisfacao(d._satisfacao)}</td>
     </tr>
@@ -679,6 +679,10 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str === null || str === undefined ? '' : String(str);
   return div.innerHTML;
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/'/g, "\\'");
 }
 
 function escapeAttr(str) {
