@@ -136,15 +136,25 @@
             </div>
           </div>
 
-          <div class="grade-graficos grade-2">
-            <div class="card-grafico">
-              <h3>Top 10 Solicitantes (quem mais abre chamado)</h3>
-              <canvas id="chTopSolicitantes"></canvas>
+          <div class="card-grafico" style="margin-bottom:20px;">
+            <h3>Top 10 Solicitantes (quem mais abre chamado)</h3>
+            <canvas id="chTopSolicitantes"></canvas>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header"><h2>Avaliações Negativas — Detalhamento</h2></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Departamento</th><th>Atendente</th><th>Solicitante</th>
+                    <th>Solicitação</th><th>Devolutiva</th><th>Tempo de Atendimento</th><th>Avaliação</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaNegativasCorpo"></tbody>
+              </table>
             </div>
-            <div class="card-grafico">
-              <h3>Avaliações Negativas por Departamento</h3>
-              <canvas id="chNegativasDepartamento"></canvas>
-            </div>
+            <div id="tabelaNegativasVazia" class="vazio" hidden>Nenhuma avaliação negativa no período selecionado. 🎉</div>
           </div>
         </div>
       </div>
@@ -166,7 +176,7 @@
                   <tr>
                     <th>ID</th><th>Assunto</th><th>Solicitante</th><th>Departamento</th>
                     <th>Unidade</th><th>Atendente</th><th>Situação</th><th>Prioridade</th>
-                    <th>Criado em</th><th>Tempo</th><th>Satisfação</th>
+                    <th>Criado em</th><th>Tempo</th><th>Satisfação</th><th>Ações</th>
                   </tr>
                 </thead>
                 <tbody id="listaCorpo"></tbody>
