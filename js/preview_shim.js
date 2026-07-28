@@ -19,5 +19,8 @@ chamarBackend = async function (payload) {
   if (payload.action === 'listarUsuarios') {
     return { success: true, usuarios: [{ nome: 'Modo Demonstração', email: 'demo@lopes.com.br', papel: 'admin', ativo: true, criadoEm: '' }] };
   }
+  if (payload.action === 'definirIgnorado') {
+    return { success: true, ignorarSatisfacao: !!payload.ignorarSatisfacao, ignorarTudo: !!payload.ignorarTudo };
+  }
   return { success: false, message: 'Ação não disponível no modo demonstração.' };
 };
