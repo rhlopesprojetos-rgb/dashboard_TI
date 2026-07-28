@@ -122,6 +122,11 @@ tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-
 .badge-aberto { background: #fff4e5; color: #b5720a; }
 .badge-atribuido { background: #eef2ff; color: #4453d6; }
 
+.botao-toggle { border: 1px solid var(--cor-borda); background: var(--cor-fundo); color: var(--cor-texto-sec); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.botao-toggle:hover { background: var(--cor-toggle-bg); }
+.botao-toggle.ativo { background: var(--cor-erro); border-color: var(--cor-erro); color: #fff; }
+.acoes-lista { display: flex; gap: 6px; }
+
 /* ---------- MODAIS ---------- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
 .modal-overlay[hidden] { display: none; }
