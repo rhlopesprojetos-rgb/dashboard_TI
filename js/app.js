@@ -230,13 +230,16 @@ function limparFiltros() {
 // ------------------------- RENDERIZAÇÃO -------------------------
 
 function renderizarTudo() {
-  // "Relatório" = tudo que está filtrado, MENOS os chamados cancelados.
-  // Cancelados continuam visíveis na aba Chamados (lista bruta), mas não
-  // entram em nenhum KPI/gráfico da Visão Geral.
-  const relatorio = dadosFiltrados.filter(d => d.situacao !== 'cancelado');
+  // "Relatório" = tudo que está filtrado, MENOS os chamados cancelados e os
+  // marcados como "ignorar de tudo". Cancelados/ignorados continuam visíveis
+  // na aba Chamados (lista bruta), mas não entram em nenhum KPI/gráfico.
+  const relatorio = dadosFiltrados.filter(d => d.situacao !== 'cancelado' && !d.ignorarTudo);
+  // Além disso, pra satisfação, tira também quem foi marcado como
+  // "ignorar da pesquisa de satisfação".
+  const relatorioSatisfacao = relatorio.filter(d => !d.ignorarSatisfacao);
 
-  renderizarKpis(relatorio);
-  renderizarGraficoSatisfacao(relatorio);
+  renderizarKpis(relatorio, relatorioSatisfacao);
+  renderizarGraficoSatisfacao(relatorioSatisfacao);
   renderizarGraficoUnidadePizza(relatorio);
   renderizarGraficoQtdAtendente(relatorio);
   renderizarGraficoTempoAtendente(relatorio);
@@ -245,19 +248,20 @@ function renderizarTudo() {
   renderizarGraficoQtdDepartamento(relatorio);
   renderizarGraficoTipoChamado(relatorio);
   renderizarGraficoTopSolicitantes(relatorio);
-  renderizarGraficoNegativasDepartamento(relatorio);
-  renderizarLista(); // usa dadosFiltrados (todas as situações, inclusive cancelados)
+  renderizarTabelaNegativas(relatorioSatisfacao);
+  renderizarLista(); // usa dadosFiltrados (todas as situações, inclusive cancelados/ignorados)
 }
 
-function renderizarKpis(relatorio) {
+function renderizarKpis(relatorio, relatorioSatisfacao) {
   const total = relatorio.length;
   const concluidos = relatorio.filter(d => d.situacao === 'concluido').length;
   const temposValidos = relatorio.map(d => d._tempoMin).filter(v => v !== null && v !== undefined);
   const mediaMin = temposValidos.length ? temposValidos.reduce((a, b) => a + b, 0) / temposValidos.length : null;
 
-  const negativas = relatorio.filter(d => d._satisfacao && d._satisfacao !== 'bom').length;
-  const boaPerc = total ? Math.round(100 * (total - negativas) / total) : null;
-  const negativasPerc = total ? Math.round(100 * negativas / total) : null;
+  const totalSat = relatorioSatisfacao.length;
+  const negativas = relatorioSatisfacao.filter(d => d._satisfacao && d._satisfacao !== 'bom').length;
+  const boaPerc = totalSat ? Math.round(100 * (totalSat - negativas) / totalSat) : null;
+  const negativasPerc = totalSat ? Math.round(100 * negativas / totalSat) : null;
 
   document.getElementById('kpisVisaoGeral').innerHTML = `
     <div class="card-resumo"><div class="rotulo">Qtd. Chamados</div><div class="valor">${total.toLocaleString('pt-BR')}</div></div>
@@ -268,9 +272,9 @@ function renderizarKpis(relatorio) {
   `;
 }
 
-function renderizarGraficoSatisfacao(relatorio) {
+function renderizarGraficoSatisfacao(relatorioSatisfacao) {
   const contagem = { bom: 0, neutro: 0, ruim: 0 };
-  relatorio.forEach(d => { if (d._satisfacao) contagem[d._satisfacao]++; });
+  relatorioSatisfacao.forEach(d => { if (d._satisfacao) contagem[d._satisfacao]++; });
 
   criarOuAtualizarChart('chSatisfacao', 'pie', {
     labels: ['Bom, estou satisfeito', 'Nem satisfeito, nem insatisfeito', 'Ruim, não estou satisfeito'],
@@ -382,15 +386,24 @@ function renderizarGraficoTopSolicitantes(relatorio) {
   });
 }
 
-function renderizarGraficoNegativasDepartamento(relatorio) {
-  const negativas = relatorio.filter(d => d._satisfacao && d._satisfacao !== 'bom');
-  const contagem = agrupar(negativas, 'departamento');
-  const entradas = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
+function renderizarTabelaNegativas(relatorioSatisfacao) {
+  const negativas = relatorioSatisfacao
+    .filter(d => d._satisfacao && d._satisfacao !== 'bom')
+    .sort((a, b) => new Date(b.concluidoEm || b.criadoEm || 0) - new Date(a.concluidoEm || a.criadoEm || 0));
 
-  criarOuAtualizarChart('chNegativasDepartamento', 'bar', {
-    labels: entradas.map(e => e[0]),
-    datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.ruim }]
-  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } });
+  document.getElementById('tabelaNegativasVazia').hidden = negativas.length !== 0;
+
+  document.getElementById('tabelaNegativasCorpo').innerHTML = negativas.map(d => `
+    <tr>
+      <td>${escapeHtml(d.departamento)}</td>
+      <td>${escapeHtml(d.atendente)}</td>
+      <td>${escapeHtml(d.solicitante)}</td>
+      <td>${escapeHtml(d.assunto || '—')}</td>
+      <td>${escapeHtml(d.comentarioSatisfacao || '—')}</td>
+      <td>${formatarDuracao(d._tempoMin)}</td>
+      <td>${rotuloSatisfacao(d._satisfacao)}</td>
+    </tr>
+  `).join('');
 }
 
 function criarOuAtualizarChart(canvasId, tipo, data, options) {
@@ -454,6 +467,12 @@ function renderizarLista() {
       <td>${d.criadoEm ? new Date(d.criadoEm).toLocaleString('pt-BR') : '—'}</td>
       <td>${formatarDuracao(d._tempoMin)}</td>
       <td>${rotuloSatisfacao(d._satisfacao)}</td>
+      <td>
+        <div class="acoes-lista">
+          <button class="botao-toggle ${d.ignorarSatisfacao ? 'ativo' : ''}" onclick="alternarIgnorar('${escapeAttr(d.id)}','ignorarSatisfacao')" title="Ignorar este chamado só na pesquisa de satisfação">🙈 Satisf.</button>
+          <button class="botao-toggle ${d.ignorarTudo ? 'ativo' : ''}" onclick="alternarIgnorar('${escapeAttr(d.id)}','ignorarTudo')" title="Ignorar este chamado em todos os relatórios">🚫 Tudo</button>
+        </div>
+      </td>
     </tr>
   `).join('');
   renderizarPaginacao();
@@ -491,6 +510,33 @@ function mudarPagina(p) {
   if (p < 1 || p > totalPaginas) return;
   paginaAtual = p;
   renderizarLista();
+}
+
+async function alternarIgnorar(id, campo) {
+  const item = dadosOriginais.find(d => String(d.id) === String(id));
+  if (!item) return;
+
+  const novoValor = !item[campo];
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({
+      action: 'definirIgnorado',
+      id: id,
+      ignorarSatisfacao: campo === 'ignorarSatisfacao' ? novoValor : !!item.ignorarSatisfacao,
+      ignorarTudo: campo === 'ignorarTudo' ? novoValor : !!item.ignorarTudo
+    });
+    if (resp.success) {
+      item.ignorarSatisfacao = resp.ignorarSatisfacao;
+      item.ignorarTudo = resp.ignorarTudo;
+      renderizarTudo();
+    } else {
+      alert(resp.message || 'Erro ao atualizar o chamado.');
+    }
+  } catch (err) {
+    alert('Erro de conexão ao atualizar o chamado.');
+  } finally {
+    mostrarCarregando(false);
+  }
 }
 
 function exportarCsv() {
