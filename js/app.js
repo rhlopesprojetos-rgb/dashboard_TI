@@ -249,6 +249,7 @@ function renderizarTudo() {
   renderizarGraficoTipoChamado(relatorio);
   renderizarGraficoTopSolicitantes(relatorio);
   renderizarTabelaNegativas(relatorioSatisfacao);
+  renderizarAnoAno();
   renderizarLista(); // usa dadosFiltrados (todas as situações, inclusive cancelados/ignorados)
 }
 
@@ -404,6 +405,139 @@ function renderizarTabelaNegativas(relatorioSatisfacao) {
       <td>${rotuloSatisfacao(d._satisfacao)}</td>
     </tr>
   `).join('');
+}
+
+// ------------------------- ANO X ANO -------------------------
+
+const MIN_REGISTROS_RANKING_MES = 5;
+
+function obterBaseAnoAno() {
+  // Ignora o filtro de Período de propósito — esta página é justamente pra
+  // comparar todo o histórico. Mas respeita unidade/departamento/atendente.
+  const unidade = document.getElementById('filtroUnidade').value;
+  const departamento = document.getElementById('filtroDepartamento').value;
+  const atendente = document.getElementById('filtroAtendente').value;
+
+  return dadosOriginais.filter(d => {
+    if (d.situacao === 'cancelado' || d.ignorarTudo) return false;
+    if (unidade && d.unidade !== unidade) return false;
+    if (departamento && d.departamento !== departamento) return false;
+    if (atendente && d.atendente !== atendente) return false;
+    return true;
+  });
+}
+
+function renderizarAnoAno() {
+  const base = obterBaseAnoAno();
+  const baseSatisfacao = base.filter(d => !d.ignorarSatisfacao);
+
+  const porAno = {};
+  const garantirAno = ano => {
+    if (!porAno[ano]) porAno[ano] = { total: 0, concluidos: 0, tempos: [], satTotal: 0, satNegativas: 0 };
+    return porAno[ano];
+  };
+
+  base.forEach(d => {
+    if (!d._mesAno) return;
+    const ano = d._mesAno.split('-')[0];
+    const info = garantirAno(ano);
+    info.total++;
+    if (d.situacao === 'concluido') info.concluidos++;
+    if (d._tempoMin !== null && d._tempoMin !== undefined) info.tempos.push(d._tempoMin);
+  });
+
+  baseSatisfacao.forEach(d => {
+    if (!d._mesAno) return;
+    const ano = d._mesAno.split('-')[0];
+    const info = garantirAno(ano);
+    info.satTotal++;
+    if (d._satisfacao && d._satisfacao !== 'bom') info.satNegativas++;
+  });
+
+  const anos = Object.keys(porAno).sort();
+  document.getElementById('anoAnoVazio').hidden = anos.length !== 0;
+
+  document.getElementById('anoAnoCorpo').innerHTML = anos.map(ano => {
+    const info = porAno[ano];
+    const mediaMin = info.tempos.length ? info.tempos.reduce((a, b) => a + b, 0) / info.tempos.length : null;
+    const boaPerc = info.satTotal ? Math.round(100 * (info.satTotal - info.satNegativas) / info.satTotal) : null;
+    return `<tr>
+      <td>${ano}</td>
+      <td>${info.total.toLocaleString('pt-BR')}</td>
+      <td>${info.concluidos.toLocaleString('pt-BR')}</td>
+      <td>${mediaMin !== null ? formatarDuracao(mediaMin) : '—'}</td>
+      <td>${boaPerc !== null ? boaPerc + '%' : '—'}</td>
+      <td>${info.satNegativas.toLocaleString('pt-BR')}</td>
+    </tr>`;
+  }).join('');
+
+  criarOuAtualizarChart('chQtdAno', 'bar', {
+    labels: anos,
+    datasets: [{ data: anos.map(a => porAno[a].total), backgroundColor: CORES.primaria }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+
+  criarOuAtualizarChart('chTempoAno', 'bar', {
+    labels: anos,
+    datasets: [{ data: anos.map(a => { const t = porAno[a].tempos; return t.length ? t.reduce((x, y) => x + y, 0) / t.length : 0; }), backgroundColor: CORES.escura }]
+  }, {
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
+  });
+
+  criarOuAtualizarChart('chSatisfacaoAno', 'bar', {
+    labels: anos,
+    datasets: [{
+      data: anos.map(a => { const info = porAno[a]; return info.satTotal ? Math.round(100 * (info.satTotal - info.satNegativas) / info.satTotal) : 0; }),
+      backgroundColor: CORES.bom
+    }]
+  }, {
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + '%' } } },
+    scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } }
+  });
+
+  criarOuAtualizarChart('chNegativasAno', 'bar', {
+    labels: anos,
+    datasets: [{ data: anos.map(a => porAno[a].satNegativas), backgroundColor: CORES.ruim }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+
+  // Ranking: melhores meses em tempo de atendimento (menor média, com volume mínimo)
+  const temposPorMes = {};
+  base.forEach(d => {
+    if (!d._mesAno || d._tempoMin === null || d._tempoMin === undefined) return;
+    if (!temposPorMes[d._mesAno]) temposPorMes[d._mesAno] = [];
+    temposPorMes[d._mesAno].push(d._tempoMin);
+  });
+  const rankingAtendimento = Object.entries(temposPorMes)
+    .filter(([, vals]) => vals.length >= MIN_REGISTROS_RANKING_MES)
+    .map(([mes, vals]) => [mes, vals.reduce((a, b) => a + b, 0) / vals.length, vals.length])
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 10);
+
+  document.getElementById('topMesesAtendimentoCorpo').innerHTML = rankingAtendimento.length
+    ? rankingAtendimento.map(([mes, media, qtd], i) => `
+        <tr><td>${i + 1}º</td><td>${rotuloPeriodo(mes)}</td><td>${qtd}</td><td>${formatarDuracao(media)}</td></tr>
+      `).join('')
+    : `<tr><td colspan="4" class="vazio">Sem meses com volume suficiente (mín. ${MIN_REGISTROS_RANKING_MES} chamados).</td></tr>`;
+
+  // Ranking: melhores meses em satisfação (maior % bom, com volume mínimo)
+  const satisfacaoPorMes = {};
+  baseSatisfacao.forEach(d => {
+    if (!d._mesAno) return;
+    if (!satisfacaoPorMes[d._mesAno]) satisfacaoPorMes[d._mesAno] = { total: 0, negativas: 0 };
+    satisfacaoPorMes[d._mesAno].total++;
+    if (d._satisfacao && d._satisfacao !== 'bom') satisfacaoPorMes[d._mesAno].negativas++;
+  });
+  const rankingSatisfacao = Object.entries(satisfacaoPorMes)
+    .filter(([, info]) => info.total >= MIN_REGISTROS_RANKING_MES)
+    .map(([mes, info]) => [mes, Math.round(100 * (info.total - info.negativas) / info.total), info.total])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+
+  document.getElementById('topMesesSatisfacaoCorpo').innerHTML = rankingSatisfacao.length
+    ? rankingSatisfacao.map(([mes, perc, qtd], i) => `
+        <tr><td>${i + 1}º</td><td>${rotuloPeriodo(mes)}</td><td>${qtd}</td><td>${perc}%</td></tr>
+      `).join('')
+    : `<tr><td colspan="4" class="vazio">Sem meses com volume suficiente (mín. ${MIN_REGISTROS_RANKING_MES} avaliações).</td></tr>`;
 }
 
 function criarOuAtualizarChart(canvasId, tipo, data, options) {
@@ -679,10 +813,6 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str === null || str === undefined ? '' : String(str);
   return div.innerHTML;
-}
-
-function escapeAttr(str) {
-  return String(str).replace(/'/g, "\\'");
 }
 
 function escapeAttr(str) {
