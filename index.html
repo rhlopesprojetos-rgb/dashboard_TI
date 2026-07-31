@@ -38,6 +38,9 @@
         <div class="nav-item" data-pagina="lista" onclick="irParaPaginaApp('lista')">
           <span class="nav-icone">📄</span><span class="nav-texto">Chamados</span>
         </div>
+        <div class="nav-item" data-pagina="anoAno" onclick="irParaPaginaApp('anoAno')">
+          <span class="nav-icone">📈</span><span class="nav-texto">Ano x Ano</span>
+        </div>
         <div class="nav-item nav-admin" data-pagina="admin" onclick="irParaPaginaApp('admin')" hidden>
           <span class="nav-icone">⚙️</span><span class="nav-texto">Administração</span>
         </div>
@@ -156,6 +159,74 @@
             </div>
             <div id="tabelaNegativasVazia" class="vazio" hidden>Nenhuma avaliação negativa no período selecionado. 🎉</div>
           </div>
+        </div>
+      </div>
+
+      <!-- PÁGINA: ANO X ANO -->
+      <div class="pagina-app" id="pg-anoAno">
+        <div class="conteudo">
+          <div class="secao-header"><h2>Ano x Ano</h2></div>
+          <p style="color:var(--cor-texto-sec); font-size:13px; margin-top:-10px;">
+            Esse comparativo usa todo o histórico disponível, independente do filtro de <b>Período</b> acima
+            (mas respeita Unidade, Departamento e Atendente).
+          </p>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Comparativo por Ano</h3></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead>
+                  <tr><th>Ano</th><th>Qtd. Chamados</th><th>Concluídos</th><th>Média de Atendimento</th><th>Satisfação Boa</th><th>Avaliações Negativas</th></tr>
+                </thead>
+                <tbody id="anoAnoCorpo"></tbody>
+              </table>
+            </div>
+            <div id="anoAnoVazio" class="vazio" hidden>Sem dados suficientes pra montar o comparativo.</div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Qtd. Chamados por Ano</h3>
+              <canvas id="chQtdAno"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Média de Atendimento por Ano</h3>
+              <canvas id="chTempoAno"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Satisfação Boa por Ano (%)</h3>
+              <canvas id="chSatisfacaoAno"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Avaliações Negativas por Ano</h3>
+              <canvas id="chNegativasAno"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="secao">
+              <div class="secao-header"><h3 style="margin:0;">🏆 Top 10 Melhores Meses em Atendimento</h3></div>
+              <div class="tabela-scroll">
+                <table>
+                  <thead><tr><th>#</th><th>Mês</th><th>Qtd. Chamados</th><th>Média de Atendimento</th></tr></thead>
+                  <tbody id="topMesesAtendimentoCorpo"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="secao">
+              <div class="secao-header"><h3 style="margin:0;">🏆 Top 10 Melhores Meses em Satisfação</h3></div>
+              <div class="tabela-scroll">
+                <table>
+                  <thead><tr><th>#</th><th>Mês</th><th>Qtd. Avaliações</th><th>Satisfação Boa</th></tr></thead>
+                  <tbody id="topMesesSatisfacaoCorpo"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <p style="color:var(--cor-texto-sec); font-size:12px;">Só entram no ranking meses com pelo menos 5 chamados/avaliações, pra não deixar um mês com poucos registros distorcer o resultado.</p>
         </div>
       </div>
 
