@@ -430,75 +430,91 @@ function obterBaseAnoAno() {
 function renderizarAnoAno() {
   const base = obterBaseAnoAno();
   const baseSatisfacao = base.filter(d => !d.ignorarSatisfacao);
+  const NOMES_MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-  const porAno = {};
-  const garantirAno = ano => {
-    if (!porAno[ano]) porAno[ano] = { total: 0, concluidos: 0, tempos: [], satTotal: 0, satNegativas: 0 };
-    return porAno[ano];
+  // Matriz ano -> [12 meses] com os agregados de cada mês daquele ano.
+  const matriz = {};
+  const celula = (ano, mesIdx) => {
+    if (!matriz[ano]) matriz[ano] = Array.from({ length: 12 }, () => ({ total: 0, concluidos: 0, tempos: [], satTotal: 0, satNegativas: 0 }));
+    return matriz[ano][mesIdx];
   };
 
   base.forEach(d => {
     if (!d._mesAno) return;
-    const ano = d._mesAno.split('-')[0];
-    const info = garantirAno(ano);
-    info.total++;
-    if (d.situacao === 'concluido') info.concluidos++;
-    if (d._tempoMin !== null && d._tempoMin !== undefined) info.tempos.push(d._tempoMin);
+    const [anoStr, mesStr] = d._mesAno.split('-');
+    const cel = celula(anoStr, parseInt(mesStr, 10) - 1);
+    cel.total++;
+    if (d.situacao === 'concluido') cel.concluidos++;
+    if (d._tempoMin !== null && d._tempoMin !== undefined) cel.tempos.push(d._tempoMin);
   });
 
   baseSatisfacao.forEach(d => {
     if (!d._mesAno) return;
-    const ano = d._mesAno.split('-')[0];
-    const info = garantirAno(ano);
-    info.satTotal++;
-    if (d._satisfacao && d._satisfacao !== 'bom') info.satNegativas++;
+    const [anoStr, mesStr] = d._mesAno.split('-');
+    const cel = celula(anoStr, parseInt(mesStr, 10) - 1);
+    cel.satTotal++;
+    if (d._satisfacao && d._satisfacao !== 'bom') cel.satNegativas++;
   });
 
-  const anos = Object.keys(porAno).sort();
+  const anos = Object.keys(matriz).sort();
   document.getElementById('anoAnoVazio').hidden = anos.length !== 0;
 
+  // Tabela "Comparativo por Ano" — soma os 12 meses de cada ano.
   document.getElementById('anoAnoCorpo').innerHTML = anos.map(ano => {
-    const info = porAno[ano];
-    const mediaMin = info.tempos.length ? info.tempos.reduce((a, b) => a + b, 0) / info.tempos.length : null;
-    const boaPerc = info.satTotal ? Math.round(100 * (info.satTotal - info.satNegativas) / info.satTotal) : null;
+    const meses = matriz[ano];
+    const total = meses.reduce((a, m) => a + m.total, 0);
+    const concluidos = meses.reduce((a, m) => a + m.concluidos, 0);
+    const tempos = meses.flatMap(m => m.tempos);
+    const satTotal = meses.reduce((a, m) => a + m.satTotal, 0);
+    const satNegativas = meses.reduce((a, m) => a + m.satNegativas, 0);
+    const mediaMin = tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length : null;
+    const boaPerc = satTotal ? Math.round(100 * (satTotal - satNegativas) / satTotal) : null;
     return `<tr>
       <td>${ano}</td>
-      <td>${info.total.toLocaleString('pt-BR')}</td>
-      <td>${info.concluidos.toLocaleString('pt-BR')}</td>
+      <td>${total.toLocaleString('pt-BR')}</td>
+      <td>${concluidos.toLocaleString('pt-BR')}</td>
       <td>${mediaMin !== null ? formatarDuracao(mediaMin) : '—'}</td>
       <td>${boaPerc !== null ? boaPerc + '%' : '—'}</td>
-      <td>${info.satNegativas.toLocaleString('pt-BR')}</td>
+      <td>${satNegativas.toLocaleString('pt-BR')}</td>
     </tr>`;
   }).join('');
 
-  criarOuAtualizarChart('chQtdAno', 'bar', {
-    labels: anos,
-    datasets: [{ data: anos.map(a => porAno[a].total), backgroundColor: CORES.primaria }]
-  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+  // Datasets: uma linha por ano, 12 pontos (um por mês), sobrepostas pra comparar.
+  const datasetsBase = (valorFn) => anos.map((ano, i) => ({
+    label: ano,
+    data: matriz[ano].map(valorFn),
+    borderColor: CORES.paleta[i % CORES.paleta.length],
+    backgroundColor: CORES.paleta[i % CORES.paleta.length],
+    tension: 0.3,
+    spanGaps: true,
+    fill: false
+  }));
 
-  criarOuAtualizarChart('chTempoAno', 'bar', {
-    labels: anos,
-    datasets: [{ data: anos.map(a => { const t = porAno[a].tempos; return t.length ? t.reduce((x, y) => x + y, 0) / t.length : 0; }), backgroundColor: CORES.escura }]
+  criarOuAtualizarChart('chQtdAno', 'line', {
+    labels: NOMES_MES,
+    datasets: datasetsBase(m => m.total || 0)
+  }, { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } });
+
+  criarOuAtualizarChart('chTempoAno', 'line', {
+    labels: NOMES_MES,
+    datasets: datasetsBase(m => m.tempos.length ? m.tempos.reduce((a, b) => a + b, 0) / m.tempos.length : null)
   }, {
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
+    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatarDuracao(ctx.raw)}` } } },
     scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
   });
 
-  criarOuAtualizarChart('chSatisfacaoAno', 'bar', {
-    labels: anos,
-    datasets: [{
-      data: anos.map(a => { const info = porAno[a]; return info.satTotal ? Math.round(100 * (info.satTotal - info.satNegativas) / info.satTotal) : 0; }),
-      backgroundColor: CORES.bom
-    }]
+  criarOuAtualizarChart('chSatisfacaoAno', 'line', {
+    labels: NOMES_MES,
+    datasets: datasetsBase(m => m.satTotal ? Math.round(100 * (m.satTotal - m.satNegativas) / m.satTotal) : null)
   }, {
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + '%' } } },
+    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}%` } } },
     scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } }
   });
 
-  criarOuAtualizarChart('chNegativasAno', 'bar', {
-    labels: anos,
-    datasets: [{ data: anos.map(a => porAno[a].satNegativas), backgroundColor: CORES.ruim }]
-  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+  criarOuAtualizarChart('chNegativasAno', 'line', {
+    labels: NOMES_MES,
+    datasets: datasetsBase(m => m.satNegativas || 0)
+  }, { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } });
 
   // Ranking: melhores meses em tempo de atendimento (menor média, com volume mínimo)
   const temposPorMes = {};
