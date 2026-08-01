@@ -89,7 +89,11 @@ function mostrarApp() {
 function irParaPaginaApp(nome) {
   document.querySelectorAll('.pagina-app').forEach(p => p.classList.toggle('ativa', p.id === 'pg-' + nome));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('ativo', n.dataset.pagina === nome));
+  // A barra de filtros (Período/Unidade/Departamento/Atendente) é só dos
+  // chamados — não se aplica à Pendência Intra, que usa outra planilha.
+  document.getElementById('filtrosBar').hidden = (nome === 'pendenciaIntra');
   if (nome === 'admin') carregarUsuarios();
+  if (nome === 'pendenciaIntra') carregarPendenciasCadastro();
 }
 
 function alternarSidebar() {
@@ -701,6 +705,88 @@ function exportarCsv() {
   a.download = `chamados_ti_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ------------------------- PENDÊNCIA INTRA (cadastro de colaboradores) -------------------------
+
+let pendenciaCadastroDados = { cadastroIncompleto: [], desligadosPendentes: [], nomesForaPadrao: [] };
+
+async function carregarPendenciasCadastro() {
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'listarPendenciasCadastro' });
+    if (!resp.success) { alert(resp.message || 'Não foi possível carregar as pendências de cadastro.'); return; }
+    pendenciaCadastroDados = resp.pendencias || { cadastroIncompleto: [], desligadosPendentes: [], nomesForaPadrao: [] };
+    renderizarPendenciaIntra();
+  } catch (err) {
+    alert('Erro de conexão ao carregar as pendências de cadastro.');
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+function renderizarPendenciaIntra() {
+  const { cadastroIncompleto, desligadosPendentes, nomesForaPadrao } = pendenciaCadastroDados;
+
+  document.getElementById('kpisPendenciaIntra').innerHTML = `
+    <div class="card-resumo"><div class="rotulo">Cadastro Incompleto (Ativos)</div><div class="valor vermelho">${cadastroIncompleto.length}</div></div>
+    <div class="card-resumo"><div class="rotulo">Desligados sem Justificativa</div><div class="valor vermelho">${desligadosPendentes.length}</div></div>
+    <div class="card-resumo"><div class="rotulo">Nomes Fora do Padrão</div><div class="valor laranja">${nomesForaPadrao.length}</div></div>
+  `;
+
+  document.getElementById('pendenciaCadastroCorpo').innerHTML = cadastroIncompleto.map(c => `
+    <tr>
+      <td>${escapeHtml(c.nome)}</td>
+      <td>${escapeHtml(c.unidade)}</td>
+      <td>${escapeHtml(c.departamento)}</td>
+      <td>${escapeHtml(c.cargo)}</td>
+      <td>${c.camposFaltando.map(f => `<span class="badge badge-cancelado">${escapeHtml(f)}</span>`).join(' ')}</td>
+    </tr>
+  `).join('');
+  document.getElementById('pendenciaCadastroVazia').hidden = cadastroIncompleto.length > 0;
+
+  document.getElementById('pendenciaDesligadosCorpo').innerHTML = desligadosPendentes.map((c, i) => `
+    <tr>
+      <td>${escapeHtml(c.nome)}</td>
+      <td>${escapeHtml(c.unidade)}</td>
+      <td>${escapeHtml(c.departamento)}</td>
+      <td>${c.dataDesligamento ? new Date(c.dataDesligamento).toLocaleDateString('pt-BR') : '—'}</td>
+      <td><input type="text" class="input-linha" id="justificativa-${i}" placeholder="Explique o motivo real do desligamento..."></td>
+      <td><button class="botao botao-primario" onclick="salvarJustificativaDesligamento('${escapeAttr(c.chave)}', '${escapeAttr(c.nome)}', ${i})">Salvar</button></td>
+    </tr>
+  `).join('');
+  document.getElementById('pendenciaDesligadosVazia').hidden = desligadosPendentes.length > 0;
+
+  document.getElementById('pendenciaNomesCorpo').innerHTML = nomesForaPadrao.map(c => `
+    <tr>
+      <td>${escapeHtml(c.nome)}</td>
+      <td>${escapeHtml(c.unidade)}</td>
+      <td>${escapeHtml(c.departamento)}</td>
+      <td>${escapeHtml(c.situacao)}</td>
+    </tr>
+  `).join('');
+  document.getElementById('pendenciaNomesVazia').hidden = nomesForaPadrao.length > 0;
+}
+
+async function salvarJustificativaDesligamento(chave, nome, indice) {
+  const input = document.getElementById('justificativa-' + indice);
+  const justificativa = (input.value || '').trim();
+  if (!justificativa) { alert('Escreva a justificativa antes de salvar.'); return; }
+
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'salvarJustificativaDesligamento', chave, nome, justificativa });
+    if (resp.success) {
+      pendenciaCadastroDados.desligadosPendentes = pendenciaCadastroDados.desligadosPendentes.filter(c => c.chave !== chave);
+      renderizarPendenciaIntra();
+    } else {
+      alert(resp.message || 'Erro ao salvar a justificativa.');
+    }
+  } catch (err) {
+    alert('Erro de conexão ao salvar a justificativa.');
+  } finally {
+    mostrarCarregando(false);
+  }
 }
 
 // ------------------------- ADMINISTRAÇÃO DE USUÁRIOS -------------------------
