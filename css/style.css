@@ -88,6 +88,8 @@ body { margin: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sa
 
 /* ---------- FILTROS / CARDS / GRÁFICOS ---------- */
 .filtros { background: var(--cor-sidebar); border-radius: var(--radius); border: 1px solid var(--cor-borda); box-shadow: var(--sombra); padding: 16px 20px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 24px 24px 0; align-items: end; }
+.filtros[hidden] { display: none; }
+.input-linha { width: 240px; padding: 7px 10px; border: 1px solid var(--cor-borda); border-radius: 8px; font-size: 13px; background: var(--cor-fundo); color: var(--cor-texto); }
 .filtros .campo label { font-size: 11px; text-transform: uppercase; color: var(--cor-texto-sec); display: block; margin-bottom: 4px; }
 .filtros input, .filtros select { width: 100%; padding: 8px 10px; border: 1px solid var(--cor-borda); border-radius: 8px; font-size: 13px; background: var(--cor-fundo); color: var(--cor-texto); }
 .conteudo { max-width: 1400px; margin: 0 auto; padding: 24px; }
@@ -147,3 +149,4 @@ tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-
   .grade-graficos { grid-template-columns: 1fr; }
   .conteudo { padding: 16px; }
 }
+
