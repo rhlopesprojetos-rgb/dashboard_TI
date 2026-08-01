@@ -41,6 +41,52 @@
         <div class="nav-item" data-pagina="anoAno" onclick="irParaPaginaApp('anoAno')">
           <span class="nav-icone">📈</span><span class="nav-texto">Ano x Ano</span>
         </div>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Chamados TI — Distribuidora Lopes (PREVIEW)</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- TELA DE LOGIN -->
+<div class="tela-login" id="telaLogin">
+  <div class="card-login">
+    <img src="https://api.distribuidoralopes.com.br/v1/images/logo/s/B2B" alt="Distribuidora Lopes">
+    <h1>Dashboard de Chamados TI</h1>
+    <p class="subtitulo-login">Faça login para continuar</p>
+    <div class="erro-login" id="erroLogin"></div>
+    <input type="email" id="emailLogin" placeholder="Email" autocomplete="username">
+    <input type="password" id="senhaLogin" placeholder="Senha" autocomplete="current-password">
+    <button class="botao botao-primario" id="btnLogin" onclick="fazerLogin()" style="width:100%">Entrar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app" hidden>
+  <div class="layout-app">
+
+    <aside class="sidebar-app" id="sidebar">
+      <div class="marca-sidebar">
+        <img src="https://api.distribuidoralopes.com.br/v1/images/logo/s/B2B" alt="Distribuidora Lopes" class="logo-sidebar">
+        <span class="titulo-sidebar">Chamados TI</span>
+        <button class="botao-recolher" onclick="alternarSidebar()" title="Recolher menu">‹</button>
+      </div>
+      <nav class="nav-lista">
+        <div class="nav-item ativo" data-pagina="visaoGeral" onclick="irParaPaginaApp('visaoGeral')">
+          <span class="nav-icone">📊</span><span class="nav-texto">Visão Geral</span>
+        </div>
+        <div class="nav-item" data-pagina="lista" onclick="irParaPaginaApp('lista')">
+          <span class="nav-icone">📄</span><span class="nav-texto">Chamados</span>
+        </div>
+        <div class="nav-item" data-pagina="anoAno" onclick="irParaPaginaApp('anoAno')">
+          <span class="nav-icone">📈</span><span class="nav-texto">Ano x Ano</span>
+        </div>
+        <div class="nav-item" data-pagina="pendenciaIntra" onclick="irParaPaginaApp('pendenciaIntra')">
+          <span class="nav-icone">🧾</span><span class="nav-texto">Pendência Intra</span>
+        </div>
         <div class="nav-item nav-admin" data-pagina="admin" onclick="irParaPaginaApp('admin')" hidden>
           <span class="nav-icone">⚙️</span><span class="nav-texto">Administração</span>
         </div>
@@ -255,6 +301,55 @@
             </div>
             <div id="listaVazia" class="vazio" hidden>Nenhum chamado encontrado com os filtros atuais.</div>
             <div class="paginacao" id="listaPaginacao"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PÁGINA: PENDÊNCIA INTRA (cadastro de colaboradores) -->
+      <div class="pagina-app" id="pg-pendenciaIntra">
+        <div class="conteudo">
+          <div class="secao-header"><h2>Pendência Intra — Acompanhamento de Cadastros</h2></div>
+          <p style="color:var(--cor-texto-sec); font-size:13px; margin-top:-10px;">
+            Dados lidos direto da planilha de colaboradores (Intra). Os filtros de Período/Unidade/Departamento/Atendente
+            acima não se aplicam a esta página, já que ela usa outra fonte de dados.
+          </p>
+
+          <div class="cards-resumo" id="kpisPendenciaIntra"></div>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Colaboradores ativos com cadastro incompleto</h3></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Cargo</th><th>Campos faltando</th></tr></thead>
+                <tbody id="pendenciaCadastroCorpo"></tbody>
+              </table>
+            </div>
+            <div id="pendenciaCadastroVazia" class="vazio" hidden>Nenhum colaborador ativo com cadastro incompleto. 🎉</div>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Desligados aguardando justificativa (Motivo: Outros)</h3></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Data de Desligamento</th><th>Justificativa</th><th>Ações</th></tr></thead>
+                <tbody id="pendenciaDesligadosCorpo"></tbody>
+              </table>
+            </div>
+            <div id="pendenciaDesligadosVazia" class="vazio" hidden>Nenhum desligamento "Outros" aguardando justificativa. 🎉</div>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Nomes fora do padrão (Nome e Sobrenome)</h3></div>
+            <p style="color:var(--cor-texto-sec); font-size:12px; margin:-8px 0 12px;">
+              Padrão esperado: exatamente 2 palavras, cada uma iniciando com maiúscula e o restante minúsculo (ex.: "João Silva").
+            </p>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Situação</th></tr></thead>
+                <tbody id="pendenciaNomesCorpo"></tbody>
+              </table>
+            </div>
+            <div id="pendenciaNomesVazia" class="vazio" hidden>Nenhum nome fora do padrão. 🎉</div>
           </div>
         </div>
       </div>
