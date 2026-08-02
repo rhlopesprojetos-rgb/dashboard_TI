@@ -41,49 +41,6 @@
         <div class="nav-item" data-pagina="anoAno" onclick="irParaPaginaApp('anoAno')">
           <span class="nav-icone">📈</span><span class="nav-texto">Ano x Ano</span>
         </div>
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard de Chamados TI — Distribuidora Lopes (PREVIEW)</title>
-<link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-
-<!-- TELA DE LOGIN -->
-<div class="tela-login" id="telaLogin">
-  <div class="card-login">
-    <img src="https://api.distribuidoralopes.com.br/v1/images/logo/s/B2B" alt="Distribuidora Lopes">
-    <h1>Dashboard de Chamados TI</h1>
-    <p class="subtitulo-login">Faça login para continuar</p>
-    <div class="erro-login" id="erroLogin"></div>
-    <input type="email" id="emailLogin" placeholder="Email" autocomplete="username">
-    <input type="password" id="senhaLogin" placeholder="Senha" autocomplete="current-password">
-    <button class="botao botao-primario" id="btnLogin" onclick="fazerLogin()" style="width:100%">Entrar</button>
-  </div>
-</div>
-
-<!-- APP -->
-<div class="app" id="app" hidden>
-  <div class="layout-app">
-
-    <aside class="sidebar-app" id="sidebar">
-      <div class="marca-sidebar">
-        <img src="https://api.distribuidoralopes.com.br/v1/images/logo/s/B2B" alt="Distribuidora Lopes" class="logo-sidebar">
-        <span class="titulo-sidebar">Chamados TI</span>
-        <button class="botao-recolher" onclick="alternarSidebar()" title="Recolher menu">‹</button>
-      </div>
-      <nav class="nav-lista">
-        <div class="nav-item ativo" data-pagina="visaoGeral" onclick="irParaPaginaApp('visaoGeral')">
-          <span class="nav-icone">📊</span><span class="nav-texto">Visão Geral</span>
-        </div>
-        <div class="nav-item" data-pagina="lista" onclick="irParaPaginaApp('lista')">
-          <span class="nav-icone">📄</span><span class="nav-texto">Chamados</span>
-        </div>
-        <div class="nav-item" data-pagina="anoAno" onclick="irParaPaginaApp('anoAno')">
-          <span class="nav-icone">📈</span><span class="nav-texto">Ano x Ano</span>
-        </div>
         <div class="nav-item" data-pagina="pendenciaIntra" onclick="irParaPaginaApp('pendenciaIntra')">
           <span class="nav-icone">🧾</span><span class="nav-texto">Pendência Intra</span>
         </div>
@@ -317,10 +274,10 @@
           <div class="cards-resumo" id="kpisPendenciaIntra"></div>
 
           <div class="secao">
-            <div class="secao-header"><h3 style="margin:0;">Colaboradores ativos com cadastro incompleto</h3></div>
+            <div class="secao-header"><h3 style="margin:0;">Colaboradores ativos com cadastro incompleto (Representante Comercial / Motorista)</h3></div>
             <div class="tabela-scroll">
               <table>
-                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Cargo</th><th>Campos faltando</th></tr></thead>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Cargo</th><th>Admissão</th><th>Campos faltando</th><th>Justificativa</th><th>Ações</th></tr></thead>
                 <tbody id="pendenciaCadastroCorpo"></tbody>
               </table>
             </div>

@@ -9,8 +9,8 @@ document.querySelector('.subtitulo-login').textContent = 'Modo demonstração �
 // Mock só pra demonstrar a página "Pendência Intra" no preview offline.
 const PENDENCIAS_MOCK = {
   cadastroIncompleto: [
-    { nome: 'Marcos Vinícius', unidade: 'GRUPO LOPES  MT', departamento: 'Logística', cargo: 'Separador', camposFaltando: ['Celular', 'Data de nascimento'] },
-    { nome: 'Juliana Prado', unidade: 'GRUPO LOPES  MS', departamento: 'Comercial', cargo: 'Representante Comercial', camposFaltando: ['Camiseta'] }
+    { chave: 'email:mock1@exemplo.com', nome: 'Marcos Vinícius', unidade: 'GRUPO LOPES  MT', departamento: 'Comercial', cargo: 'Representante Comercial', admissao: '2025-03-10T00:00:00.000Z', camposFaltando: ['Celular', 'Data de nascimento'] },
+    { chave: 'email:mock2@exemplo.com', nome: 'Juliano Prado', unidade: 'GRUPO LOPES  MS', departamento: 'Logística', cargo: 'Motorista', admissao: null, camposFaltando: ['Admissão', 'Camiseta'] }
   ],
   desligadosPendentes: [
     { chave: 'email:demo1@exemplo.com', nome: 'Ricardo Nascimento', unidade: 'GRUPO LOPES  MT', departamento: 'Comercial', cargo: 'Representante Comercial', dataDesligamento: '2026-05-10T00:00:00.000Z' },
@@ -40,6 +40,10 @@ chamarBackend = async function (payload) {
   }
   if (payload.action === 'listarPendenciasCadastro') {
     return { success: true, pendencias: PENDENCIAS_MOCK };
+  }
+  if (payload.action === 'salvarJustificativaCadastro') {
+    PENDENCIAS_MOCK.cadastroIncompleto = PENDENCIAS_MOCK.cadastroIncompleto.filter(c => c.chave !== payload.chave);
+    return { success: true };
   }
   if (payload.action === 'salvarJustificativaDesligamento') {
     PENDENCIAS_MOCK.desligadosPendentes = PENDENCIAS_MOCK.desligadosPendentes.filter(c => c.chave !== payload.chave);

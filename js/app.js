@@ -734,13 +734,16 @@ function renderizarPendenciaIntra() {
     <div class="card-resumo"><div class="rotulo">Nomes Fora do Padrão</div><div class="valor laranja">${nomesForaPadrao.length}</div></div>
   `;
 
-  document.getElementById('pendenciaCadastroCorpo').innerHTML = cadastroIncompleto.map(c => `
+  document.getElementById('pendenciaCadastroCorpo').innerHTML = cadastroIncompleto.map((c, i) => `
     <tr>
       <td>${escapeHtml(c.nome)}</td>
       <td>${escapeHtml(c.unidade)}</td>
       <td>${escapeHtml(c.departamento)}</td>
       <td>${escapeHtml(c.cargo)}</td>
+      <td>${c.admissao ? new Date(c.admissao).toLocaleDateString('pt-BR') : '—'}</td>
       <td>${c.camposFaltando.map(f => `<span class="badge badge-cancelado">${escapeHtml(f)}</span>`).join(' ')}</td>
+      <td><input type="text" class="input-linha" id="justificativaCadastro-${i}" placeholder="Justificativa, se necessário..."></td>
+      <td><button class="botao botao-primario" onclick="salvarJustificativaCadastro('${escapeAttr(c.chave)}', '${escapeAttr(c.nome)}', '${escapeAttr(c.camposFaltando.join(', '))}', ${i})">Salvar</button></td>
     </tr>
   `).join('');
   document.getElementById('pendenciaCadastroVazia').hidden = cadastroIncompleto.length > 0;
@@ -766,6 +769,27 @@ function renderizarPendenciaIntra() {
     </tr>
   `).join('');
   document.getElementById('pendenciaNomesVazia').hidden = nomesForaPadrao.length > 0;
+}
+
+async function salvarJustificativaCadastro(chave, nome, camposFaltando, indice) {
+  const input = document.getElementById('justificativaCadastro-' + indice);
+  const justificativa = (input.value || '').trim();
+  if (!justificativa) { alert('Escreva a justificativa antes de salvar.'); return; }
+
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'salvarJustificativaCadastro', chave, nome, camposFaltando, justificativa });
+    if (resp.success) {
+      pendenciaCadastroDados.cadastroIncompleto = pendenciaCadastroDados.cadastroIncompleto.filter(c => c.chave !== chave);
+      renderizarPendenciaIntra();
+    } else {
+      alert(resp.message || 'Erro ao salvar a justificativa.');
+    }
+  } catch (err) {
+    alert('Erro de conexão ao salvar a justificativa.');
+  } finally {
+    mostrarCarregando(false);
+  }
 }
 
 async function salvarJustificativaDesligamento(chave, nome, indice) {
