@@ -17,8 +17,8 @@ const PENDENCIAS_MOCK = {
     { chave: 'email:demo2@exemplo.com', nome: 'Fernanda Botelho', unidade: 'GRUPO LOPES  MS', departamento: 'Logística', cargo: 'Conferente', dataDesligamento: '2026-06-02T00:00:00.000Z' }
   ],
   nomesForaPadrao: [
-    { nome: 'CARLOS DA SILVA COELHO', unidade: 'GRUPO LOPES  MS', departamento: 'Comercial', situacao: 'desligado' },
-    { nome: 'joyce silva', unidade: 'GRUPO LOPES  MT', departamento: 'Logística', situacao: 'ativo' }
+    { nome: 'joyce silva', unidade: 'GRUPO LOPES  MT', departamento: 'Logística' },
+    { nome: 'CARLOS DA SILVA', unidade: 'GRUPO LOPES  MS', departamento: 'Comercial' }
   ]
 };
 
