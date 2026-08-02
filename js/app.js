@@ -765,7 +765,6 @@ function renderizarPendenciaIntra() {
       <td>${escapeHtml(c.nome)}</td>
       <td>${escapeHtml(c.unidade)}</td>
       <td>${escapeHtml(c.departamento)}</td>
-      <td>${escapeHtml(c.situacao)}</td>
     </tr>
   `).join('');
   document.getElementById('pendenciaNomesVazia').hidden = nomesForaPadrao.length > 0;
