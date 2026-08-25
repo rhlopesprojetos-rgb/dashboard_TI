@@ -94,7 +94,7 @@ function irParaPaginaApp(nome) {
   document.getElementById('filtrosBar').hidden = (nome === 'pendenciaIntra');
   if (nome === 'admin') carregarUsuarios();
   if (nome === 'pendenciaIntra') carregarPendenciasCadastro();
-  if (nome === 'assistenteIA') { renderizarRepetitivos(); carregarInstrucoesIA(); }
+  if (nome === 'assistenteIA') carregarInstrucoesIA();
 }
 
 function alternarSidebar() {
@@ -922,25 +922,6 @@ function construirResumoParaIA() {
     topAssuntosRepetidos: topAssuntos,
     historicoMensalPorTipo: historicoMensalPorTipo
   };
-}
-
-// Só a listagem/contagem (sem IA) — roda na hora, sem custo nenhum.
-function renderizarRepetitivos() {
-  const resumo = construirResumoParaIA();
-  const linhas = resumo.topAssuntosRepetidos;
-
-  document.getElementById('repetitivosCorpo').innerHTML = linhas.map(a => `
-    <tr>
-      <td>${escapeHtml(a.assunto)}</td>
-      <td>${a.quantidade}</td>
-      <td>${escapeHtml(a.departamentoMaisFrequente || '—')}</td>
-    </tr>
-  `).join('');
-  document.getElementById('repetitivosVazio').hidden = linhas.length > 0;
-}
-
-async function pedirExplicacaoRepetitivos() {
-  await enviarPerguntaIA('Quais são os chamados mais repetitivos no resumo e, com base nos exemplos de devolutiva, quais as prováveis causas de cada um se repetir tanto?');
 }
 
 function montarHistoricoIA() {
