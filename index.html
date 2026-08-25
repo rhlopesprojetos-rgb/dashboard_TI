@@ -355,8 +355,8 @@
               <button type="button" class="chat-imagem-remover" onclick="removerImagemIA()" title="Remover imagem">✕</button>
             </div>
             <div class="chat-input-linha">
-              <input type="file" id="chatImagemInput" accept="image/*,.pdf,application/pdf" hidden onchange="anexarImagemIA(event)">
-              <button type="button" class="botao botao-secundario chat-botao-anexar" onclick="document.getElementById('chatImagemInput').click()" title="Anexar print ou PDF">📎</button>
+              <input type="file" id="chatImagemInput" accept="image/*,.pdf,application/pdf,audio/*" hidden onchange="anexarImagemIA(event)">
+              <button type="button" class="botao botao-secundario chat-botao-anexar" onclick="document.getElementById('chatImagemInput').click()" title="Anexar print, PDF ou áudio">📎</button>
               <input type="text" id="perguntaIAInput" placeholder="Escreva sua pergunta sobre os chamados..." onkeydown="if(event.key==='Enter') enviarPerguntaIA()">
               <button class="botao botao-primario" onclick="enviarPerguntaIA()">Perguntar</button>
             </div>
