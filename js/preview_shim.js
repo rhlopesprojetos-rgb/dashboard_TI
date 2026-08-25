@@ -63,8 +63,9 @@ chamarBackend = async function (payload) {
     // No preview offline não existe chamada real de IA — só uma resposta
     // fixa pra mostrar como o chat funciona.
     if (payload.imagemBase64) {
-      const tipo = payload.imagemMimeType === 'application/pdf' ? 'PDF' : 'imagem';
-      return { success: true, resposta: `[Resposta de demonstração] Recebi ${tipo === 'PDF' ? 'o PDF' : 'a imagem'} anexado(a). No modo real, o Gemini analisaria esse ${tipo} junto com o resumo dos chamados filtrados pra te ajudar.` };
+      const mime = payload.imagemMimeType || '';
+      const tipo = mime === 'application/pdf' ? 'PDF' : (mime.indexOf('audio/') === 0 ? 'áudio' : 'imagem');
+      return { success: true, resposta: `[Resposta de demonstração] Recebi o(a) ${tipo} anexado(a). No modo real, o Gemini analisaria esse anexo junto com o resumo dos chamados filtrados pra te ajudar.` };
     }
     const totalRepetidos = (payload.resumo && payload.resumo.topAssuntosRepetidos) || [];
     const exemplo = totalRepetidos[0];
