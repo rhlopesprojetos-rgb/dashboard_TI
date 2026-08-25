@@ -94,6 +94,7 @@ function irParaPaginaApp(nome) {
   document.getElementById('filtrosBar').hidden = (nome === 'pendenciaIntra');
   if (nome === 'admin') carregarUsuarios();
   if (nome === 'pendenciaIntra') carregarPendenciasCadastro();
+  if (nome === 'assistenteIA') renderizarRepetitivos();
 }
 
 function alternarSidebar() {
@@ -810,6 +811,161 @@ async function salvarJustificativaDesligamento(chave, nome, indice) {
   } finally {
     mostrarCarregando(false);
   }
+}
+
+// ------------------------- ASSISTENTE IA (chamados repetitivos + perguntas) -------------------------
+
+let mensagensIA = []; // [{ autor: 'usuario'|'assistente', texto, erro? }]
+
+function normalizarTexto(t) {
+  return String(t || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Monta o resumo agregado dos chamados FILTRADOS (mesmos filtros da tela)
+ * pra mandar pro backend/IA. Nunca manda os chamados "crus" — só contagens,
+ * médias e alguns exemplos curtos de devolutiva.
+ */
+function construirResumoParaIA() {
+  const relatorio = dadosFiltrados.filter(d => d.situacao !== 'cancelado' && !d.ignorarTudo);
+
+  const porTipo = {};
+  relatorio.forEach(d => {
+    const chave = d.tipo || 'Não informado';
+    if (!porTipo[chave]) porTipo[chave] = { tipo: chave, qtd: 0, somaTempo: 0, qtdComTempo: 0, negativos: 0 };
+    porTipo[chave].qtd++;
+    if (d._tempoMin != null) { porTipo[chave].somaTempo += d._tempoMin; porTipo[chave].qtdComTempo++; }
+    if (d._satisfacao === 'ruim' || d._satisfacao === 'neutro') porTipo[chave].negativos++;
+  });
+  const topTipos = Object.values(porTipo)
+    .sort((a, b) => b.qtd - a.qtd)
+    .slice(0, 12)
+    .map(t => ({
+      tipo: t.tipo,
+      quantidade: t.qtd,
+      tempoMedioMin: t.qtdComTempo ? Math.round(t.somaTempo / t.qtdComTempo) : null,
+      avaliacoesNegativas: t.negativos
+    }));
+
+  const porAssunto = {};
+  relatorio.forEach(d => {
+    const norm = normalizarTexto(d.assunto);
+    if (!norm) return;
+    if (!porAssunto[norm]) porAssunto[norm] = { assunto: d.assunto, qtd: 0, departamentos: {}, exemplosResposta: [] };
+    porAssunto[norm].qtd++;
+    porAssunto[norm].departamentos[d.departamento] = (porAssunto[norm].departamentos[d.departamento] || 0) + 1;
+    if (d.ultimaResposta && porAssunto[norm].exemplosResposta.length < 3) {
+      porAssunto[norm].exemplosResposta.push(String(d.ultimaResposta).slice(0, 200));
+    }
+  });
+  const topAssuntos = Object.values(porAssunto)
+    .filter(a => a.qtd >= 2)
+    .sort((a, b) => b.qtd - a.qtd)
+    .slice(0, 15)
+    .map(a => {
+      const deptOrdenados = Object.entries(a.departamentos).sort((x, y) => y[1] - x[1]);
+      return {
+        assunto: a.assunto,
+        quantidade: a.qtd,
+        departamentoMaisFrequente: deptOrdenados.length ? deptOrdenados[0][0] : null,
+        exemplosDevolutiva: a.exemplosResposta
+      };
+    });
+
+  return {
+    totalChamadosNoFiltro: relatorio.length,
+    filtrosAtivos: {
+      periodo: document.getElementById('filtroPeriodo').value || 'Todos os períodos',
+      unidade: document.getElementById('filtroUnidade').value || 'Todas',
+      departamento: document.getElementById('filtroDepartamento').value || 'Todos',
+      atendente: document.getElementById('filtroAtendente').value || 'Todos'
+    },
+    topTipos: topTipos,
+    topAssuntosRepetidos: topAssuntos
+  };
+}
+
+// Só a listagem/contagem (sem IA) — roda na hora, sem custo nenhum.
+function renderizarRepetitivos() {
+  const resumo = construirResumoParaIA();
+  const linhas = resumo.topAssuntosRepetidos;
+
+  document.getElementById('repetitivosCorpo').innerHTML = linhas.map(a => `
+    <tr>
+      <td>${escapeHtml(a.assunto)}</td>
+      <td>${a.quantidade}</td>
+      <td>${escapeHtml(a.departamentoMaisFrequente || '—')}</td>
+    </tr>
+  `).join('');
+  document.getElementById('repetitivosVazio').hidden = linhas.length > 0;
+}
+
+async function pedirExplicacaoRepetitivos() {
+  await enviarPerguntaIA('Quais são os chamados mais repetitivos no resumo e, com base nos exemplos de devolutiva, quais as prováveis causas de cada um se repetir tanto?');
+}
+
+function montarHistoricoIA() {
+  // Reconstrói pares pergunta/resposta a partir das mensagens já trocadas
+  // (ignora a pergunta que acabou de ser enviada, que ainda não tem resposta).
+  const historico = [];
+  for (let i = 0; i < mensagensIA.length - 1; i++) {
+    if (mensagensIA[i].autor === 'usuario' && mensagensIA[i + 1] && mensagensIA[i + 1].autor === 'assistente') {
+      historico.push({ pergunta: mensagensIA[i].texto, resposta: mensagensIA[i + 1].texto });
+    }
+  }
+  return historico.slice(-5);
+}
+
+async function enviarPerguntaIA(perguntaForcada) {
+  const inputEl = document.getElementById('perguntaIAInput');
+  const pergunta = (perguntaForcada !== undefined ? perguntaForcada : inputEl.value).trim();
+  if (!pergunta) return;
+
+  const historico = montarHistoricoIA();
+  mensagensIA.push({ autor: 'usuario', texto: pergunta });
+  if (perguntaForcada === undefined) inputEl.value = '';
+  renderizarChatIA();
+
+  document.getElementById('statusIA').hidden = false;
+  try {
+    const resp = await chamarBackend({
+      action: 'perguntarAgenteIA',
+      pergunta: pergunta,
+      resumo: construirResumoParaIA(),
+      historico: historico
+    });
+    if (resp.success) {
+      mensagensIA.push({ autor: 'assistente', texto: resp.resposta });
+    } else {
+      mensagensIA.push({ autor: 'assistente', texto: resp.message || 'Não consegui responder agora.', erro: true });
+    }
+  } catch (err) {
+    mensagensIA.push({ autor: 'assistente', texto: 'Erro de conexão com o assistente. Tente novamente.', erro: true });
+  } finally {
+    document.getElementById('statusIA').hidden = true;
+    renderizarChatIA();
+  }
+}
+
+function renderizarChatIA() {
+  const caixa = document.getElementById('chatIACorpo');
+  if (mensagensIA.length === 0) {
+    caixa.innerHTML = '<div class="chat-vazio" id="chatIAVazio">Pergunte algo como "Por que os chamados de impressora se repetem tanto no Comercial?"</div>';
+    return;
+  }
+  caixa.innerHTML = mensagensIA.map(m => `
+    <div class="chat-mensagem ${m.autor === 'usuario' ? 'chat-usuario' : 'chat-assistente'} ${m.erro ? 'chat-erro' : ''}">${escapeHtml(m.texto)}</div>
+  `).join('');
+  caixa.scrollTop = caixa.scrollHeight;
+}
+
+function limparConversaIA() {
+  mensagensIA = [];
+  renderizarChatIA();
 }
 
 // ------------------------- ADMINISTRAÇÃO DE USUÁRIOS -------------------------
