@@ -22,6 +22,9 @@ const PENDENCIAS_MOCK = {
   ]
 };
 
+// Mock das instruções personalizadas (fica só na sessão do preview).
+let INSTRUCOES_IA_MOCK = '';
+
 chamarBackend = async function (payload) {
   await new Promise(r => setTimeout(r, 200));
   const usuarioDemo = { nome: 'Modo Demonstração', email: 'demo@lopes.com.br', papel: 'admin' };
@@ -47,6 +50,13 @@ chamarBackend = async function (payload) {
   }
   if (payload.action === 'salvarJustificativaDesligamento') {
     PENDENCIAS_MOCK.desligadosPendentes = PENDENCIAS_MOCK.desligadosPendentes.filter(c => c.chave !== payload.chave);
+    return { success: true };
+  }
+  if (payload.action === 'obterInstrucoesIA') {
+    return { success: true, instrucoes: INSTRUCOES_IA_MOCK };
+  }
+  if (payload.action === 'salvarInstrucoesIA') {
+    INSTRUCOES_IA_MOCK = String(payload.instrucoes || '');
     return { success: true };
   }
   if (payload.action === 'perguntarAgenteIA') {
