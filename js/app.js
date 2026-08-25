@@ -845,7 +845,7 @@ async function salvarJustificativaDesligamento(chave, nome, indice) {
 // ------------------------- ASSISTENTE IA (chamados repetitivos + perguntas) -------------------------
 
 let mensagensIA = []; // [{ autor: 'usuario'|'assistente', texto, erro?, tipoAnexo? }]
-let imagemAnexadaIA = null; // { base64, mimeType, nome, ehImagem } | null
+let imagemAnexadaIA = null; // { base64, mimeType, nome, tipo: 'imagem'|'pdf'|'audio' } | null
 
 const TAMANHO_MAX_ANEXO_IA = 5 * 1024 * 1024; // 5 MB
 
@@ -854,10 +854,13 @@ function anexarImagemIA(evento) {
   evento.target.value = ''; // permite anexar o mesmo arquivo de novo depois de remover
   if (!arquivo) return;
 
-  const ehImagem = arquivo.type.startsWith('image/');
-  const ehPdf = arquivo.type === 'application/pdf' || /\.pdf$/i.test(arquivo.name);
-  if (!ehImagem && !ehPdf) {
-    alert('Só é possível anexar imagens (print de tela, foto, etc.) ou arquivos PDF.');
+  let tipo = null;
+  if (arquivo.type.startsWith('image/')) tipo = 'imagem';
+  else if (arquivo.type === 'application/pdf' || /\.pdf$/i.test(arquivo.name)) tipo = 'pdf';
+  else if (arquivo.type.startsWith('audio/')) tipo = 'audio';
+
+  if (!tipo) {
+    alert('Só é possível anexar imagens (print de tela, foto), PDF ou áudio.');
     return;
   }
   if (arquivo.size > TAMANHO_MAX_ANEXO_IA) {
@@ -870,13 +873,15 @@ function anexarImagemIA(evento) {
     // leitor.result vem como "data:image/png;base64,AAAA..." — guardamos só a parte depois da vírgula.
     const base64Completo = leitor.result;
     const base64 = base64Completo.substring(base64Completo.indexOf(',') + 1);
-    const mimeType = arquivo.type || (ehPdf ? 'application/pdf' : 'image/png');
-    imagemAnexadaIA = { base64: base64, mimeType: mimeType, nome: arquivo.name, ehImagem: ehImagem };
-    renderizarImagemAnexadaIA(ehImagem ? base64Completo : null);
+    const mimeType = arquivo.type || (tipo === 'pdf' ? 'application/pdf' : 'image/png');
+    imagemAnexadaIA = { base64: base64, mimeType: mimeType, nome: arquivo.name, tipo: tipo };
+    renderizarImagemAnexadaIA(tipo === 'imagem' ? base64Completo : null);
   };
   leitor.onerror = () => alert('Não consegui ler esse arquivo. Tente outro.');
   leitor.readAsDataURL(arquivo);
 }
+
+const ICONE_ANEXO = { imagem: '🖼️', pdf: '📄', audio: '🎤' };
 
 function renderizarImagemAnexadaIA(urlPreview) {
   const caixa = document.getElementById('chatImagemAnexada');
@@ -884,7 +889,7 @@ function renderizarImagemAnexadaIA(urlPreview) {
   const img = document.getElementById('chatImagemPreview');
   img.hidden = !urlPreview;
   if (urlPreview) img.src = urlPreview;
-  document.getElementById('chatImagemNome').textContent = (imagemAnexadaIA.ehImagem ? '🖼️ ' : '📄 ') + imagemAnexadaIA.nome;
+  document.getElementById('chatImagemNome').textContent = (ICONE_ANEXO[imagemAnexadaIA.tipo] || '📎') + ' ' + imagemAnexadaIA.nome;
   caixa.hidden = false;
 }
 
@@ -1080,7 +1085,7 @@ async function enviarPerguntaIA(perguntaForcada) {
 
   const historico = montarHistoricoIA();
   const imagem = imagemAnexadaIA; // captura antes de limpar
-  mensagensIA.push({ autor: 'usuario', texto: pergunta, tipoAnexo: imagem ? (imagem.ehImagem ? 'imagem' : 'PDF') : null });
+  mensagensIA.push({ autor: 'usuario', texto: pergunta, tipoAnexo: imagem ? imagem.tipo : null });
   if (perguntaForcada === undefined) inputEl.value = '';
   removerImagemIA();
   renderizarChatIA();
