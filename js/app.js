@@ -844,7 +844,54 @@ async function salvarJustificativaDesligamento(chave, nome, indice) {
 
 // ------------------------- ASSISTENTE IA (chamados repetitivos + perguntas) -------------------------
 
-let mensagensIA = []; // [{ autor: 'usuario'|'assistente', texto, erro? }]
+let mensagensIA = []; // [{ autor: 'usuario'|'assistente', texto, erro?, tipoAnexo? }]
+let imagemAnexadaIA = null; // { base64, mimeType, nome, ehImagem } | null
+
+const TAMANHO_MAX_ANEXO_IA = 5 * 1024 * 1024; // 5 MB
+
+function anexarImagemIA(evento) {
+  const arquivo = evento.target.files && evento.target.files[0];
+  evento.target.value = ''; // permite anexar o mesmo arquivo de novo depois de remover
+  if (!arquivo) return;
+
+  const ehImagem = arquivo.type.startsWith('image/');
+  const ehPdf = arquivo.type === 'application/pdf' || /\.pdf$/i.test(arquivo.name);
+  if (!ehImagem && !ehPdf) {
+    alert('Só é possível anexar imagens (print de tela, foto, etc.) ou arquivos PDF.');
+    return;
+  }
+  if (arquivo.size > TAMANHO_MAX_ANEXO_IA) {
+    alert('Arquivo grande demais (máximo 5 MB). Tente um arquivo menor, ou recorte só a parte relevante.');
+    return;
+  }
+
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    // leitor.result vem como "data:image/png;base64,AAAA..." — guardamos só a parte depois da vírgula.
+    const base64Completo = leitor.result;
+    const base64 = base64Completo.substring(base64Completo.indexOf(',') + 1);
+    const mimeType = arquivo.type || (ehPdf ? 'application/pdf' : 'image/png');
+    imagemAnexadaIA = { base64: base64, mimeType: mimeType, nome: arquivo.name, ehImagem: ehImagem };
+    renderizarImagemAnexadaIA(ehImagem ? base64Completo : null);
+  };
+  leitor.onerror = () => alert('Não consegui ler esse arquivo. Tente outro.');
+  leitor.readAsDataURL(arquivo);
+}
+
+function renderizarImagemAnexadaIA(urlPreview) {
+  const caixa = document.getElementById('chatImagemAnexada');
+  if (!imagemAnexadaIA) { caixa.hidden = true; return; }
+  const img = document.getElementById('chatImagemPreview');
+  img.hidden = !urlPreview;
+  if (urlPreview) img.src = urlPreview;
+  document.getElementById('chatImagemNome').textContent = (imagemAnexadaIA.ehImagem ? '🖼️ ' : '📄 ') + imagemAnexadaIA.nome;
+  caixa.hidden = false;
+}
+
+function removerImagemIA() {
+  imagemAnexadaIA = null;
+  document.getElementById('chatImagemAnexada').hidden = true;
+}
 
 function normalizarTexto(t) {
   return String(t || '')
@@ -1032,18 +1079,25 @@ async function enviarPerguntaIA(perguntaForcada) {
   if (!pergunta) return;
 
   const historico = montarHistoricoIA();
-  mensagensIA.push({ autor: 'usuario', texto: pergunta });
+  const imagem = imagemAnexadaIA; // captura antes de limpar
+  mensagensIA.push({ autor: 'usuario', texto: pergunta, tipoAnexo: imagem ? (imagem.ehImagem ? 'imagem' : 'PDF') : null });
   if (perguntaForcada === undefined) inputEl.value = '';
+  removerImagemIA();
   renderizarChatIA();
 
   document.getElementById('statusIA').hidden = false;
   try {
-    const resp = await chamarBackend({
+    const payload = {
       action: 'perguntarAgenteIA',
       pergunta: pergunta,
       resumo: construirResumoParaIA(pergunta),
       historico: historico
-    });
+    };
+    if (imagem) {
+      payload.imagemBase64 = imagem.base64;
+      payload.imagemMimeType = imagem.mimeType;
+    }
+    const resp = await chamarBackend(payload);
     if (resp.success) {
       mensagensIA.push({ autor: 'assistente', texto: resp.resposta });
     } else {
@@ -1064,13 +1118,14 @@ function renderizarChatIA() {
     return;
   }
   caixa.innerHTML = mensagensIA.map(m => `
-    <div class="chat-mensagem ${m.autor === 'usuario' ? 'chat-usuario' : 'chat-assistente'} ${m.erro ? 'chat-erro' : ''}">${escapeHtml(m.texto)}</div>
+    <div class="chat-mensagem ${m.autor === 'usuario' ? 'chat-usuario' : 'chat-assistente'} ${m.erro ? 'chat-erro' : ''}">${m.tipoAnexo ? `<div class="chat-tag-imagem">📎 ${m.tipoAnexo} anexado(a)</div>` : ''}${escapeHtml(m.texto)}</div>
   `).join('');
   caixa.scrollTop = caixa.scrollHeight;
 }
 
 function limparConversaIA() {
   mensagensIA = [];
+  removerImagemIA();
   renderizarChatIA();
 }
 
