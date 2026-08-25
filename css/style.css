@@ -149,3 +149,14 @@ tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-
   .grade-graficos { grid-template-columns: 1fr; }
   .conteudo { padding: 16px; }
 }
+
+/* ---------- ASSISTENTE IA (chat) ---------- */
+.chat-caixa { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 4px 8px; margin-bottom: 12px; }
+.chat-vazio { color: var(--cor-texto-sec); font-size: 13px; text-align: center; padding: 24px 12px; }
+.chat-mensagem { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+.chat-usuario { align-self: flex-end; background: var(--cor-primaria); color: #fff; border-bottom-right-radius: 4px; }
+.chat-assistente { align-self: flex-start; background: var(--cor-toggle-bg); color: var(--cor-texto); border-bottom-left-radius: 4px; }
+.chat-assistente.chat-erro { background: #fde8e8; color: var(--cor-erro); }
+.chat-status { color: var(--cor-texto-sec); font-size: 12px; margin: -4px 0 10px; }
+.chat-input-linha { display: flex; gap: 8px; }
+.chat-input-linha input { flex: 1; padding: 10px 14px; border: 1px solid var(--cor-borda); border-radius: 999px; font-size: 13px; background: var(--cor-fundo); color: var(--cor-texto); }
