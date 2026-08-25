@@ -1,73 +1,421 @@
-// MODO DEMONSTRAÇÃO — substitui as chamadas ao backend por dados locais (DADOS_MOCK).
-// Use apenas para conferir o visual do painel. Apague este arquivo e a referência
-// dele no HTML depois que o Apps Script estiver implantado de verdade.
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Chamados TI — Distribuidora Lopes (PREVIEW)</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
 
-document.getElementById('emailLogin').value = 'demo@lopes.com.br';
-document.getElementById('senhaLogin').value = 'demo123';
-document.querySelector('.subtitulo-login').textContent = 'Modo demonstração — clique em Entrar (qualquer email/senha funciona)';
+<!-- TELA DE LOGIN -->
+<div class="tela-login" id="telaLogin">
+  <div class="card-login">
+    <img src="https://api.distribuidoralopes.com.br/v1/images/logo/s/B2B" alt="Distribuidora Lopes">
+    <h1>Dashboard de Chamados TI</h1>
+    <p class="subtitulo-login">Faça login para continuar</p>
+    <div class="erro-login" id="erroLogin"></div>
+    <input type="email" id="emailLogin" placeholder="Email" autocomplete="username">
+    <input type="password" id="senhaLogin" placeholder="Senha" autocomplete="current-password">
+    <button class="botao botao-primario" id="btnLogin" onclick="fazerLogin()" style="width:100%">Entrar</button>
+  </div>
+</div>
 
-// Mock só pra demonstrar a página "Pendência Intra" no preview offline.
-const PENDENCIAS_MOCK = {
-  cadastroIncompleto: [
-    { chave: 'email:mock1@exemplo.com', nome: 'Marcos Vinícius', unidade: 'GRUPO LOPES  MT', departamento: 'Comercial', cargo: 'Representante Comercial', admissao: '2025-03-10T00:00:00.000Z', camposFaltando: ['Celular', 'Data de nascimento'] },
-    { chave: 'email:mock2@exemplo.com', nome: 'Juliano Prado', unidade: 'GRUPO LOPES  MS', departamento: 'Logística', cargo: 'Motorista', admissao: null, camposFaltando: ['Admissão', 'Camiseta'] }
-  ],
-  desligadosPendentes: [
-    { chave: 'email:demo1@exemplo.com', nome: 'Ricardo Nascimento', unidade: 'GRUPO LOPES  MT', departamento: 'Comercial', cargo: 'Representante Comercial', dataDesligamento: '2026-05-10T00:00:00.000Z' },
-    { chave: 'email:demo2@exemplo.com', nome: 'Fernanda Botelho', unidade: 'GRUPO LOPES  MS', departamento: 'Logística', cargo: 'Conferente', dataDesligamento: '2026-06-02T00:00:00.000Z' }
-  ],
-  nomesForaPadrao: [
-    { nome: 'joyce silva', unidade: 'GRUPO LOPES  MT', departamento: 'Logística' },
-    { nome: 'CARLOS DA SILVA', unidade: 'GRUPO LOPES  MS', departamento: 'Comercial' }
-  ]
-};
+<!-- APP -->
+<div class="app" id="app" hidden>
+  <div class="layout-app">
 
-// Mock das instruções personalizadas (fica só na sessão do preview).
-let INSTRUCOES_IA_MOCK = '';
+    <aside class="sidebar-app" id="sidebar">
+      <div class="marca-sidebar">
+        <img src="https://api.distribuidoralopes.com.br/v1/images/logo/s/B2B" alt="Distribuidora Lopes" class="logo-sidebar">
+        <span class="titulo-sidebar">Chamados TI</span>
+        <button class="botao-recolher" onclick="alternarSidebar()" title="Recolher menu">‹</button>
+      </div>
+      <nav class="nav-lista">
+        <div class="nav-item ativo" data-pagina="visaoGeral" onclick="irParaPaginaApp('visaoGeral')">
+          <span class="nav-icone">📊</span><span class="nav-texto">Visão Geral</span>
+        </div>
+        <div class="nav-item" data-pagina="lista" onclick="irParaPaginaApp('lista')">
+          <span class="nav-icone">📄</span><span class="nav-texto">Chamados</span>
+        </div>
+        <div class="nav-item" data-pagina="anoAno" onclick="irParaPaginaApp('anoAno')">
+          <span class="nav-icone">📈</span><span class="nav-texto">Ano x Ano</span>
+        </div>
+        <div class="nav-item" data-pagina="pendenciaIntra" onclick="irParaPaginaApp('pendenciaIntra')">
+          <span class="nav-icone">🧾</span><span class="nav-texto">Pendência Intra</span>
+        </div>
+        <div class="nav-item" data-pagina="assistenteIA" onclick="irParaPaginaApp('assistenteIA')">
+          <span class="nav-icone">🤖</span><span class="nav-texto">Assistente IA</span>
+        </div>
+        <div class="nav-item nav-admin" data-pagina="admin" onclick="irParaPaginaApp('admin')" hidden>
+          <span class="nav-icone">⚙️</span><span class="nav-texto">Administração</span>
+        </div>
+      </nav>
+      <div class="rodape-sidebar">
+        <button class="botao botao-secundario botao-full" onclick="recarregarDados()">🔄 <span class="nav-texto">Atualizar dados</span></button>
+        <button class="botao botao-secundario botao-full" onclick="alternarTema()">
+          <span id="iconeTema">🌙</span> <span class="nav-texto">Tema</span>
+        </button>
+        <div class="usuario-sidebar">
+          <div class="avatar-usuario" id="avatarUsuario">?</div>
+          <div class="info-usuario">
+            <div class="nome-usuario" id="nomeUsuarioSidebar">—</div>
+            <div class="papel-usuario" id="papelUsuarioSidebar">—</div>
+          </div>
+        </div>
+        <button class="botao botao-secundario botao-full" onclick="abrirModalSenha()">🔑 <span class="nav-texto">Trocar senha</span></button>
+        <button class="botao botao-perigo botao-full" onclick="sair()">🚪 <span class="nav-texto">Sair</span></button>
+        <div class="versao-sidebar nav-texto">Versão 1.0.0 · Distribuidora Lopes</div>
+      </div>
+    </aside>
 
-chamarBackend = async function (payload) {
-  await new Promise(r => setTimeout(r, 200));
-  const usuarioDemo = { nome: 'Modo Demonstração', email: 'demo@lopes.com.br', papel: 'admin' };
+    <main class="principal-app">
 
-  if (payload.action === 'login') {
-    return { success: true, token: 'demo-token', usuario: usuarioDemo };
-  }
-  if (payload.action === 'listarDados') {
-    return { success: true, dados: DADOS_MOCK, usuario: usuarioDemo };
-  }
-  if (payload.action === 'listarUsuarios') {
-    return { success: true, usuarios: [{ nome: 'Modo Demonstração', email: 'demo@lopes.com.br', papel: 'admin', ativo: true, criadoEm: '' }] };
-  }
-  if (payload.action === 'definirIgnorado') {
-    return { success: true, ignorarSatisfacao: !!payload.ignorarSatisfacao, ignorarTudo: !!payload.ignorarTudo };
-  }
-  if (payload.action === 'listarPendenciasCadastro') {
-    return { success: true, pendencias: PENDENCIAS_MOCK };
-  }
-  if (payload.action === 'salvarJustificativaCadastro') {
-    PENDENCIAS_MOCK.cadastroIncompleto = PENDENCIAS_MOCK.cadastroIncompleto.filter(c => c.chave !== payload.chave);
-    return { success: true };
-  }
-  if (payload.action === 'salvarJustificativaDesligamento') {
-    PENDENCIAS_MOCK.desligadosPendentes = PENDENCIAS_MOCK.desligadosPendentes.filter(c => c.chave !== payload.chave);
-    return { success: true };
-  }
-  if (payload.action === 'obterInstrucoesIA') {
-    return { success: true, instrucoes: INSTRUCOES_IA_MOCK };
-  }
-  if (payload.action === 'salvarInstrucoesIA') {
-    INSTRUCOES_IA_MOCK = String(payload.instrucoes || '');
-    return { success: true };
-  }
-  if (payload.action === 'perguntarAgenteIA') {
-    // No preview offline não existe chamada real de IA — só uma resposta
-    // fixa pra mostrar como o chat funciona.
-    const totalRepetidos = (payload.resumo && payload.resumo.topAssuntosRepetidos) || [];
-    const exemplo = totalRepetidos[0];
-    const texto = exemplo
-      ? `[Resposta de demonstração] O chamado mais repetitivo no filtro atual é "${exemplo.assunto}", com ${exemplo.quantidade} ocorrências, concentrado no departamento ${exemplo.departamentoMaisFrequente || 'não identificado'}. No modo real, o Gemini analisaria os exemplos de devolutiva pra sugerir a causa provável.`
-      : '[Resposta de demonstração] Não há chamados repetitivos suficientes no filtro atual pra essa análise. No modo real, a pergunta seria enviada ao Gemini junto com o resumo dos chamados filtrados.';
-    return { success: true, resposta: texto };
-  }
-  return { success: false, message: 'Ação não disponível no modo demonstração.' };
-};
+      <!-- Barra de filtros compartilhada -->
+      <div class="filtros" id="filtrosBar">
+        <div class="campo">
+          <label>Período</label>
+          <div class="periodo-duplo">
+            <input type="date" id="filtroPeriodoInicio" onchange="aplicarFiltros()" title="De">
+            <span>até</span>
+            <input type="date" id="filtroPeriodoFim" onchange="aplicarFiltros()" title="Até">
+          </div>
+        </div>
+        <div class="campo">
+          <label>Unidade</label>
+          <select id="filtroUnidade" onchange="aplicarFiltros()"><option value="">Todas</option></select>
+        </div>
+        <div class="campo">
+          <label>Departamento</label>
+          <select id="filtroDepartamento" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+        </div>
+        <div class="campo">
+          <label>Atendente</label>
+          <select id="filtroAtendente" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+        </div>
+        <div class="campo" style="display:flex; align-items:flex-end;">
+          <button class="botao botao-secundario" onclick="limparFiltros()" style="width:100%">Limpar filtros</button>
+        </div>
+      </div>
+
+      <!-- PÁGINA: VISÃO GERAL -->
+      <div class="pagina-app ativa" id="pg-visaoGeral">
+        <div class="conteudo">
+          <div class="secao-header"><h2>Visão Geral</h2></div>
+
+          <div class="cards-resumo" id="kpisVisaoGeral"></div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Satisfação dos Atendimentos</h3>
+              <canvas id="chSatisfacao"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Distribuição por Unidade</h3>
+              <canvas id="chUnidadePizza"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Qtd. Chamados Atendidos por Técnico</h3>
+              <canvas id="chQtdAtendente"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Tempo Médio de Atendimento por Técnico</h3>
+              <canvas id="chTempoAtendente"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Tempo Total por Departamento</h3>
+              <canvas id="chTempoDepartamento"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Tempo Médio por Unidade</h3>
+              <canvas id="chTempoUnidade"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Qtd. Chamados por Departamento</h3>
+              <canvas id="chQtdDepartamento"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Chamados por Tipo</h3>
+              <canvas id="chTipoChamado"></canvas>
+            </div>
+          </div>
+
+          <div class="card-grafico" style="margin-bottom:20px;">
+            <h3>Top 10 Solicitantes (quem mais abre chamado)</h3>
+            <canvas id="chTopSolicitantes"></canvas>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header"><h2>Avaliações Negativas — Detalhamento</h2></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Departamento</th><th>Atendente</th><th>Solicitante</th>
+                    <th>Solicitação</th><th>Devolutiva</th><th>Tempo de Atendimento</th><th>Avaliação</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaNegativasCorpo"></tbody>
+              </table>
+            </div>
+            <div id="tabelaNegativasVazia" class="vazio" hidden>Nenhuma avaliação negativa no período selecionado. 🎉</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PÁGINA: ANO X ANO -->
+      <div class="pagina-app" id="pg-anoAno">
+        <div class="conteudo">
+          <div class="secao-header"><h2>Ano x Ano</h2></div>
+          <p style="color:var(--cor-texto-sec); font-size:13px; margin-top:-10px;">
+            Esse comparativo usa todo o histórico disponível, independente do filtro de <b>Período</b> acima
+            (mas respeita Unidade, Departamento e Atendente).
+          </p>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Comparativo por Ano</h3></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead>
+                  <tr><th>Ano</th><th>Qtd. Chamados</th><th>Concluídos</th><th>Média de Atendimento</th><th>Satisfação Boa</th><th>Avaliações Negativas</th></tr>
+                </thead>
+                <tbody id="anoAnoCorpo"></tbody>
+              </table>
+            </div>
+            <div id="anoAnoVazio" class="vazio" hidden>Sem dados suficientes pra montar o comparativo.</div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Qtd. Chamados — Mês a Mês</h3>
+              <canvas id="chQtdAno"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Média de Atendimento — Mês a Mês</h3>
+              <canvas id="chTempoAno"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="card-grafico">
+              <h3>Satisfação Boa (%) — Mês a Mês</h3>
+              <canvas id="chSatisfacaoAno"></canvas>
+            </div>
+            <div class="card-grafico">
+              <h3>Avaliações Negativas — Mês a Mês</h3>
+              <canvas id="chNegativasAno"></canvas>
+            </div>
+          </div>
+
+          <div class="grade-graficos grade-2">
+            <div class="secao">
+              <div class="secao-header"><h3 style="margin:0;">🏆 Top 10 Melhores Meses em Atendimento</h3></div>
+              <div class="tabela-scroll">
+                <table>
+                  <thead><tr><th>#</th><th>Mês</th><th>Qtd. Chamados</th><th>Média de Atendimento</th></tr></thead>
+                  <tbody id="topMesesAtendimentoCorpo"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="secao">
+              <div class="secao-header"><h3 style="margin:0;">🏆 Top 10 Melhores Meses em Satisfação</h3></div>
+              <div class="tabela-scroll">
+                <table>
+                  <thead><tr><th>#</th><th>Mês</th><th>Qtd. Avaliações</th><th>Satisfação Boa</th></tr></thead>
+                  <tbody id="topMesesSatisfacaoCorpo"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <p style="color:var(--cor-texto-sec); font-size:12px;">Só entram no ranking meses com pelo menos 5 chamados/avaliações, pra não deixar um mês com poucos registros distorcer o resultado.</p>
+        </div>
+      </div>
+
+      <!-- PÁGINA: LISTA DE CHAMADOS -->
+      <div class="pagina-app" id="pg-lista">
+        <div class="conteudo">
+          <div class="secao">
+            <div class="secao-header">
+              <h2>Chamados</h2>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="buscaLista" placeholder="Buscar por ID, solicitante ou assunto..." oninput="aplicarFiltros()" style="padding:8px 12px; border:1px solid var(--cor-borda); border-radius:8px; font-size:13px; width:280px;">
+                <button class="botao botao-secundario" onclick="exportarCsv()">Exportar CSV</button>
+              </div>
+            </div>
+            <div class="tabela-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Assunto</th><th>Solicitante</th><th>Departamento</th>
+                    <th>Unidade</th><th>Atendente</th><th>Situação</th><th>Prioridade</th>
+                    <th>Criado em</th><th>Tempo</th><th>Satisfação</th><th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="listaCorpo"></tbody>
+              </table>
+            </div>
+            <div id="listaVazia" class="vazio" hidden>Nenhum chamado encontrado com os filtros atuais.</div>
+            <div class="paginacao" id="listaPaginacao"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PÁGINA: PENDÊNCIA INTRA (cadastro de colaboradores) -->
+      <div class="pagina-app" id="pg-pendenciaIntra">
+        <div class="conteudo">
+          <div class="secao-header"><h2>Pendência Intra — Acompanhamento de Cadastros</h2></div>
+          <p style="color:var(--cor-texto-sec); font-size:13px; margin-top:-10px;">
+            Dados lidos direto da planilha de colaboradores (Intra). Os filtros de Período/Unidade/Departamento/Atendente
+            acima não se aplicam a esta página, já que ela usa outra fonte de dados.
+          </p>
+
+          <div class="cards-resumo" id="kpisPendenciaIntra"></div>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Colaboradores ativos com cadastro incompleto (Representante Comercial / Motorista)</h3></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Cargo</th><th>Admissão</th><th>Campos faltando</th><th>Justificativa</th><th>Ações</th></tr></thead>
+                <tbody id="pendenciaCadastroCorpo"></tbody>
+              </table>
+            </div>
+            <div id="pendenciaCadastroVazia" class="vazio" hidden>Nenhum colaborador ativo com cadastro incompleto. 🎉</div>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Desligados aguardando justificativa (Motivo: Outros)</h3></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Data de Desligamento</th><th>Justificativa</th><th>Ações</th></tr></thead>
+                <tbody id="pendenciaDesligadosCorpo"></tbody>
+              </table>
+            </div>
+            <div id="pendenciaDesligadosVazia" class="vazio" hidden>Nenhum desligamento "Outros" aguardando justificativa. 🎉</div>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Nomes fora do padrão (Nome e Sobrenome)</h3></div>
+            <p style="color:var(--cor-texto-sec); font-size:12px; margin:-8px 0 12px;">
+              Padrão esperado: exatamente 2 palavras, cada uma iniciando com maiúscula e o restante minúsculo (ex.: "João Silva").
+            </p>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th></tr></thead>
+                <tbody id="pendenciaNomesCorpo"></tbody>
+              </table>
+            </div>
+            <div id="pendenciaNomesVazia" class="vazio" hidden>Nenhum nome fora do padrão. 🎉</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PÁGINA: ASSISTENTE IA (chamados repetitivos + perguntas) -->
+      <div class="pagina-app" id="pg-assistenteIA">
+        <div class="conteudo">
+          <div class="secao-header"><h2>Assistente IA</h2></div>
+          <p style="color:var(--cor-texto-sec); font-size:13px; margin-top:-10px;">
+            Usa os chamados já filtrados acima (Período/Unidade/Departamento/Atendente) pra identificar padrões e
+            responder perguntas. As respostas são geradas por IA (Google Gemini) com base nesses dados — sempre
+            confira antes de agir.
+          </p>
+
+          <div class="secao" id="secaoInstrucoesIA" hidden>
+            <div class="secao-header"><h3 style="margin:0;">⚙️ Instruções personalizadas para a IA (admin)</h3></div>
+            <p style="color:var(--cor-texto-sec); font-size:12px; margin:-8px 0 12px;">
+              Esse texto é enviado junto em toda pergunta feita ao assistente — use pra ensinar como você quer que ele
+              responda, dar contexto sobre a empresa, ou tratar termos como sinônimos (ex.: "chamado de rede" = "Internet - WiFi").
+            </p>
+            <textarea id="instrucoesIATextarea" class="input-linha" style="width:100%; min-height:110px; resize:vertical; font-family:inherit;" placeholder="Ex.: Sempre responda em tópicos curtos. Ao comparar meses, destaque variações acima de 20%. Trate 'rede' e 'wifi' como o mesmo assunto."></textarea>
+            <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+              <button class="botao botao-primario" onclick="salvarInstrucoesIA()">Salvar instruções</button>
+            </div>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header">
+              <h3 style="margin:0;">💬 Perguntar ao assistente</h3>
+              <button class="botao botao-secundario" onclick="limparConversaIA()">Limpar conversa</button>
+            </div>
+            <div class="chat-caixa" id="chatIACorpo">
+              <div class="chat-vazio" id="chatIAVazio">Pergunte algo como "Por que os chamados de impressora se repetem tanto no Comercial?"</div>
+            </div>
+            <div class="chat-status" id="statusIA" hidden>🤖 Pensando...</div>
+            <div class="chat-input-linha">
+              <input type="text" id="perguntaIAInput" placeholder="Escreva sua pergunta sobre os chamados..." onkeydown="if(event.key==='Enter') enviarPerguntaIA()">
+              <button class="botao botao-primario" onclick="enviarPerguntaIA()">Perguntar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PÁGINA: ADMINISTRAÇÃO -->
+      <div class="pagina-app" id="pg-admin">
+        <div class="conteudo">
+          <div class="secao">
+            <div class="secao-header">
+              <h2>Usuários do painel</h2>
+              <button class="botao botao-primario" onclick="abrirModalNovoUsuario()">+ Novo usuário</button>
+            </div>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Email</th><th>Papel</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody id="usuariosCorpo"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODAL: TROCAR SENHA -->
+<div class="modal-overlay" id="modalSenha" hidden>
+  <div class="modal-card">
+    <h3>Trocar senha</h3>
+    <input type="password" id="novaSenhaInput" placeholder="Nova senha (mín. 6 caracteres)">
+    <div class="erro-login" id="erroSenha"></div>
+    <div class="modal-acoes">
+      <button class="botao botao-secundario" onclick="fecharModal('modalSenha')">Cancelar</button>
+      <button class="botao botao-primario" onclick="confirmarTrocaSenha()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO USUÁRIO -->
+<div class="modal-overlay" id="modalNovoUsuario" hidden>
+  <div class="modal-card">
+    <h3>Novo usuário</h3>
+    <input type="text" id="novoNomeInput" placeholder="Nome completo">
+    <input type="email" id="novoEmailInput" placeholder="Email">
+    <select id="novoPapelInput">
+      <option value="usuario">Usuário (somente visualização)</option>
+      <option value="admin">Administrador</option>
+    </select>
+    <div class="erro-login" id="erroNovoUsuario"></div>
+    <div class="modal-acoes">
+      <button class="botao botao-secundario" onclick="fecharModal('modalNovoUsuario')">Cancelar</button>
+      <button class="botao botao-primario" onclick="confirmarNovoUsuario()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-carregando" id="overlayCarregando"><div class="spinner"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/dados_mock.js"></script>
+<script src="js/app.js"></script>
+<script src="js/preview_shim.js"></script>
+</body>
+</html>
