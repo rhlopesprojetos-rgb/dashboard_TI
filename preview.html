@@ -317,26 +317,12 @@
       <!-- PÁGINA: ASSISTENTE IA (chamados repetitivos + perguntas) -->
       <div class="pagina-app" id="pg-assistenteIA">
         <div class="conteudo">
-          <div class="secao-header"><h2>Assistente IA — Chamados Repetitivos</h2></div>
+          <div class="secao-header"><h2>Assistente IA</h2></div>
           <p style="color:var(--cor-texto-sec); font-size:13px; margin-top:-10px;">
             Usa os chamados já filtrados acima (Período/Unidade/Departamento/Atendente) pra identificar padrões e
             responder perguntas. As respostas são geradas por IA (Google Gemini) com base nesses dados — sempre
             confira antes de agir.
           </p>
-
-          <div class="secao">
-            <div class="secao-header">
-              <h3 style="margin:0;">🔁 Chamados mais repetitivos</h3>
-              <button class="botao botao-secundario" onclick="pedirExplicacaoRepetitivos()">🧠 Pedir explicação à IA</button>
-            </div>
-            <div class="tabela-scroll">
-              <table>
-                <thead><tr><th>Assunto</th><th>Qtd.</th><th>Departamento mais frequente</th></tr></thead>
-                <tbody id="repetitivosCorpo"></tbody>
-              </table>
-            </div>
-            <div id="repetitivosVazio" class="vazio" hidden>Nenhum chamado repetitivo identificado nesse filtro.</div>
-          </div>
 
           <div class="secao" id="secaoInstrucoesIA" hidden>
             <div class="secao-header"><h3 style="margin:0;">⚙️ Instruções personalizadas para a IA (admin)</h3></div>
