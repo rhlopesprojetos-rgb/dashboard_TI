@@ -338,6 +338,18 @@
             <div id="repetitivosVazio" class="vazio" hidden>Nenhum chamado repetitivo identificado nesse filtro.</div>
           </div>
 
+          <div class="secao" id="secaoInstrucoesIA" hidden>
+            <div class="secao-header"><h3 style="margin:0;">⚙️ Instruções personalizadas para a IA (admin)</h3></div>
+            <p style="color:var(--cor-texto-sec); font-size:12px; margin:-8px 0 12px;">
+              Esse texto é enviado junto em toda pergunta feita ao assistente — use pra ensinar como você quer que ele
+              responda, dar contexto sobre a empresa, ou tratar termos como sinônimos (ex.: "chamado de rede" = "Internet - WiFi").
+            </p>
+            <textarea id="instrucoesIATextarea" class="input-linha" style="width:100%; min-height:110px; resize:vertical; font-family:inherit;" placeholder="Ex.: Sempre responda em tópicos curtos. Ao comparar meses, destaque variações acima de 20%. Trate 'rede' e 'wifi' como o mesmo assunto."></textarea>
+            <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+              <button class="botao botao-primario" onclick="salvarInstrucoesIA()">Salvar instruções</button>
+            </div>
+          </div>
+
           <div class="secao">
             <div class="secao-header">
               <h3 style="margin:0;">💬 Perguntar ao assistente</h3>
