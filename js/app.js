@@ -898,6 +898,95 @@ function removerImagemIA() {
   document.getElementById('chatImagemAnexada').hidden = true;
 }
 
+// ---- Gravar áudio direto do navegador (microfone) ----
+
+let gravadorIA = null;
+let gravacaoChunksIA = [];
+let gravacaoInicioIA = null;
+let gravacaoTimerIA = null;
+
+function formatarDuracaoCurta(segundos) {
+  const m = Math.floor(segundos / 60);
+  const s = segundos % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function escolherMimeTypeGravacaoIA() {
+  const candidatos = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return '';
+  return candidatos.find(tipo => MediaRecorder.isTypeSupported(tipo)) || '';
+}
+
+async function alternarGravacaoIA() {
+  if (gravadorIA && gravadorIA.state === 'recording') {
+    gravadorIA.stop(); // o resto (parar botão/timer) acontece no onstop
+    return;
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('Seu navegador não suporta gravação de áudio. Tente pelo Chrome ou Edge atualizados.');
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = escolherMimeTypeGravacaoIA();
+    gravadorIA = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    gravacaoChunksIA = [];
+
+    gravadorIA.ondataavailable = e => { if (e.data && e.data.size > 0) gravacaoChunksIA.push(e.data); };
+
+    gravadorIA.onstop = () => {
+      stream.getTracks().forEach(t => t.stop()); // libera o microfone
+      pararTimerGravacaoIA();
+      document.getElementById('botaoGravarIA').classList.remove('gravando');
+      document.getElementById('botaoGravarIA').textContent = '🎙️';
+
+      const mimeFinal = gravadorIA.mimeType || mimeType || 'audio/webm';
+      const duracaoSeg = Math.max(1, Math.round((Date.now() - gravacaoInicioIA) / 1000));
+      const blob = new Blob(gravacaoChunksIA, { type: mimeFinal });
+
+      const leitor = new FileReader();
+      leitor.onload = () => {
+        const base64Completo = leitor.result;
+        const base64 = base64Completo.substring(base64Completo.indexOf(',') + 1);
+        imagemAnexadaIA = {
+          base64: base64,
+          mimeType: mimeFinal,
+          nome: `Gravação de áudio (${formatarDuracaoCurta(duracaoSeg)})`,
+          tipo: 'audio'
+        };
+        renderizarImagemAnexadaIA(null);
+      };
+      leitor.onerror = () => alert('Não consegui processar a gravação. Tente de novo.');
+      leitor.readAsDataURL(blob);
+    };
+
+    gravadorIA.start();
+    gravacaoInicioIA = Date.now();
+    document.getElementById('botaoGravarIA').classList.add('gravando');
+    document.getElementById('botaoGravarIA').textContent = '⏹️';
+    iniciarTimerGravacaoIA();
+  } catch (err) {
+    alert('Não consegui acessar o microfone. Verifique se você permitiu o acesso ao microfone pro navegador nas configurações do site.');
+  }
+}
+
+function iniciarTimerGravacaoIA() {
+  const status = document.getElementById('chatGravandoStatus');
+  status.hidden = false;
+  document.getElementById('chatGravandoTempo').textContent = '0:00';
+  gravacaoTimerIA = setInterval(() => {
+    const seg = Math.round((Date.now() - gravacaoInicioIA) / 1000);
+    document.getElementById('chatGravandoTempo').textContent = formatarDuracaoCurta(seg);
+  }, 500);
+}
+
+function pararTimerGravacaoIA() {
+  clearInterval(gravacaoTimerIA);
+  document.getElementById('chatGravandoStatus').hidden = true;
+}
+
 function normalizarTexto(t) {
   return String(t || '')
     .trim()
@@ -1129,6 +1218,7 @@ function renderizarChatIA() {
 }
 
 function limparConversaIA() {
+  if (gravadorIA && gravadorIA.state === 'recording') gravadorIA.stop();
   mensagensIA = [];
   removerImagemIA();
   renderizarChatIA();
