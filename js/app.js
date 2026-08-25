@@ -81,7 +81,26 @@ function sair() {
 function mostrarApp() {
   document.getElementById('telaLogin').hidden = true;
   document.getElementById('app').hidden = false;
+  definirPeriodoAtualPadrao();
   carregarDados();
+}
+
+// Deixa o filtro de Período já aberto no mês atual (De = dia 1, Até = último
+// dia do mês corrente). O usuário pode ampliar pra um intervalo maior à
+// vontade, ou limpar os dois campos pra ver "todos os períodos".
+function definirPeriodoAtualPadrao() {
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+  document.getElementById('filtroPeriodoInicio').value = formatarDataISO(inicioMes);
+  document.getElementById('filtroPeriodoFim').value = formatarDataISO(fimMes);
+}
+
+function formatarDataISO(d) {
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }
 
 // ------------------------- NAVEGAÇÃO ENTRE PÁGINAS -------------------------
@@ -174,9 +193,6 @@ function atualizarInfoUsuario() {
 // ------------------------- FILTROS -------------------------
 
 function popularFiltros() {
-  const periodos = [...new Set(dadosOriginais.map(d => d._mesAno).filter(Boolean))].sort().reverse();
-  preencherSelect('filtroPeriodo', periodos, rotuloPeriodo, 'Todos os períodos');
-
   const unidades = [...new Set(dadosOriginais.map(d => d.unidade).filter(Boolean))].sort();
   preencherSelect('filtroUnidade', unidades, v => v, 'Todas');
 
@@ -201,14 +217,26 @@ function rotuloPeriodo(mesAno) {
 }
 
 function aplicarFiltros() {
-  const periodo = document.getElementById('filtroPeriodo').value;
+  const periodoInicio = document.getElementById('filtroPeriodoInicio').value;
+  const periodoFim = document.getElementById('filtroPeriodoFim').value;
   const unidade = document.getElementById('filtroUnidade').value;
   const departamento = document.getElementById('filtroDepartamento').value;
   const atendente = document.getElementById('filtroAtendente').value;
   const busca = (document.getElementById('buscaLista').value || '').trim().toLowerCase();
 
+  // Período usa a data de CONCLUSÃO do chamado (regra de negócio já existente
+  // — chamado sem conclusão só aparece quando os dois campos de data estão
+  // vazios, ou seja, em "todos os períodos").
+  const dataInicio = periodoInicio ? new Date(periodoInicio + 'T00:00:00') : null;
+  const dataFim = periodoFim ? new Date(periodoFim + 'T23:59:59') : null;
+
   dadosFiltrados = dadosOriginais.filter(d => {
-    if (periodo && d._mesAno !== periodo) return false;
+    if (dataInicio || dataFim) {
+      if (!d.concluidoEm) return false;
+      const dataConclusao = new Date(d.concluidoEm);
+      if (dataInicio && dataConclusao < dataInicio) return false;
+      if (dataFim && dataConclusao > dataFim) return false;
+    }
     if (unidade && d.unidade !== unidade) return false;
     if (departamento && d.departamento !== departamento) return false;
     if (atendente && d.atendente !== atendente) return false;
@@ -224,7 +252,8 @@ function aplicarFiltros() {
 }
 
 function limparFiltros() {
-  document.getElementById('filtroPeriodo').value = '';
+  document.getElementById('filtroPeriodoInicio').value = '';
+  document.getElementById('filtroPeriodoFim').value = '';
   document.getElementById('filtroUnidade').value = '';
   document.getElementById('filtroDepartamento').value = '';
   document.getElementById('filtroAtendente').value = '';
@@ -971,7 +1000,9 @@ function construirResumoParaIA(pergunta) {
   return {
     totalChamadosNoFiltro: relatorio.length,
     filtrosAtivos: {
-      periodo: document.getElementById('filtroPeriodo').value || 'Todos os períodos',
+      periodo: (document.getElementById('filtroPeriodoInicio').value || document.getElementById('filtroPeriodoFim').value)
+        ? `${document.getElementById('filtroPeriodoInicio').value || '...'} até ${document.getElementById('filtroPeriodoFim').value || '...'}`
+        : 'Todos os períodos',
       unidade: document.getElementById('filtroUnidade').value || 'Todas',
       departamento: document.getElementById('filtroDepartamento').value || 'Todos',
       atendente: document.getElementById('filtroAtendente').value || 'Todos'
