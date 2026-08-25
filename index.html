@@ -349,6 +349,9 @@
               <div class="chat-vazio" id="chatIAVazio">Pergunte algo como "Por que os chamados de impressora se repetem tanto no Comercial?"</div>
             </div>
             <div class="chat-status" id="statusIA" hidden>🤖 Pensando...</div>
+            <div class="chat-gravando" id="chatGravandoStatus" hidden>
+              <span class="ponto-gravando"></span> Gravando... <span id="chatGravandoTempo">0:00</span> — clique no microfone pra parar
+            </div>
             <div class="chat-imagem-anexada" id="chatImagemAnexada" hidden>
               <img id="chatImagemPreview" alt="Pré-visualização da imagem anexada">
               <span id="chatImagemNome"></span>
@@ -357,6 +360,7 @@
             <div class="chat-input-linha">
               <input type="file" id="chatImagemInput" accept="image/*,.pdf,application/pdf,audio/*" hidden onchange="anexarImagemIA(event)">
               <button type="button" class="botao botao-secundario chat-botao-anexar" onclick="document.getElementById('chatImagemInput').click()" title="Anexar print, PDF ou áudio">📎</button>
+              <button type="button" class="botao botao-secundario chat-botao-anexar" id="botaoGravarIA" onclick="alternarGravacaoIA()" title="Gravar áudio">🎙️</button>
               <input type="text" id="perguntaIAInput" placeholder="Escreva sua pergunta sobre os chamados..." onkeydown="if(event.key==='Enter') enviarPerguntaIA()">
               <button class="botao botao-primario" onclick="enviarPerguntaIA()">Perguntar</button>
             </div>
