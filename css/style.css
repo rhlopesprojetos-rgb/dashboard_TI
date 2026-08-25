@@ -169,3 +169,7 @@ tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-
 .chat-imagem-anexada img { width: 32px; height: 32px; object-fit: cover; border-radius: 6px; }
 .chat-imagem-anexada span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-imagem-remover { border: none; background: none; color: var(--cor-erro); cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.chat-botao-anexar.gravando { background: var(--cor-erro); color: #fff; border-color: var(--cor-erro); }
+.chat-gravando { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--cor-erro); margin-bottom: 8px; }
+.ponto-gravando { width: 8px; height: 8px; border-radius: 50%; background: var(--cor-erro); animation: piscar-gravando 1s infinite; }
+@keyframes piscar-gravando { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
