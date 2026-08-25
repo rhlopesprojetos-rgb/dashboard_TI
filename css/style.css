@@ -160,6 +160,12 @@ tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-
 .chat-usuario { align-self: flex-end; background: var(--cor-primaria); color: #fff; border-bottom-right-radius: 4px; }
 .chat-assistente { align-self: flex-start; background: var(--cor-toggle-bg); color: var(--cor-texto); border-bottom-left-radius: 4px; }
 .chat-assistente.chat-erro { background: #fde8e8; color: var(--cor-erro); }
+.chat-tag-imagem { font-size: 11px; opacity: 0.85; margin-bottom: 4px; }
 .chat-status { color: var(--cor-texto-sec); font-size: 12px; margin: -4px 0 10px; }
 .chat-input-linha { display: flex; gap: 8px; }
-.chat-input-linha input { flex: 1; padding: 10px 14px; border: 1px solid var(--cor-borda); border-radius: 999px; font-size: 13px; background: var(--cor-fundo); color: var(--cor-texto); }
+.chat-input-linha input[type="text"] { flex: 1; padding: 10px 14px; border: 1px solid var(--cor-borda); border-radius: 999px; font-size: 13px; background: var(--cor-fundo); color: var(--cor-texto); }
+.chat-botao-anexar { width: 42px; height: 42px; padding: 0; border-radius: 999px; font-size: 16px; flex-shrink: 0; }
+.chat-imagem-anexada { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 8px; border: 1px solid var(--cor-borda); border-radius: 10px; background: var(--cor-toggle-bg); font-size: 12px; color: var(--cor-texto-sec); }
+.chat-imagem-anexada img { width: 32px; height: 32px; object-fit: cover; border-radius: 6px; }
+.chat-imagem-anexada span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-imagem-remover { border: none; background: none; color: var(--cor-erro); cursor: pointer; font-size: 14px; padding: 2px 6px; }
