@@ -92,6 +92,9 @@ body { margin: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sa
 .input-linha { width: 240px; padding: 7px 10px; border: 1px solid var(--cor-borda); border-radius: 8px; font-size: 13px; background: var(--cor-fundo); color: var(--cor-texto); }
 .filtros .campo label { font-size: 11px; text-transform: uppercase; color: var(--cor-texto-sec); display: block; margin-bottom: 4px; }
 .filtros input, .filtros select { width: 100%; padding: 8px 10px; border: 1px solid var(--cor-borda); border-radius: 8px; font-size: 13px; background: var(--cor-fundo); color: var(--cor-texto); }
+.periodo-duplo { display: flex; align-items: center; gap: 6px; }
+.periodo-duplo input { flex: 1; min-width: 0; padding: 8px 6px; }
+.periodo-duplo span { color: var(--cor-texto-sec); font-size: 11px; white-space: nowrap; }
 .conteudo { max-width: 1400px; margin: 0 auto; padding: 24px; }
 .cards-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 20px; }
 .card-resumo { background: var(--cor-sidebar); border-radius: var(--radius); border: 1px solid var(--cor-borda); box-shadow: var(--sombra); padding: 18px 20px; }
