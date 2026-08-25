@@ -75,7 +75,11 @@
       <div class="filtros" id="filtrosBar">
         <div class="campo">
           <label>Período</label>
-          <select id="filtroPeriodo" onchange="aplicarFiltros()"><option value="">Todos os períodos</option></select>
+          <div class="periodo-duplo">
+            <input type="date" id="filtroPeriodoInicio" onchange="aplicarFiltros()" title="De">
+            <span>até</span>
+            <input type="date" id="filtroPeriodoFim" onchange="aplicarFiltros()" title="Até">
+          </div>
         </div>
         <div class="campo">
           <label>Unidade</label>
