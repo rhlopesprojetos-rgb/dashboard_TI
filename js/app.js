@@ -825,12 +825,67 @@ function normalizarTexto(t) {
     .replace(/\s+/g, ' ');
 }
 
+// Palavras comuns demais pra virarem termo de busca (perguntas típicas tipo
+// "quantos chamados de X teve esse mês no setor Y" têm bastante ruído assim).
+const PALAVRAS_IGNORADAS_BUSCA = new Set([
+  'quantos', 'quantas', 'quanto', 'quanta', 'qual', 'quais', 'quando', 'onde', 'como', 'porque', 'porqu',
+  'para', 'com', 'sem', 'sobre', 'entre', 'desde', 'esse', 'essa', 'esses', 'essas', 'este', 'esta',
+  'estes', 'estas', 'isso', 'isto', 'aquilo', 'aquele', 'aquela', 'tem', 'teve', 'houve', 'houveram',
+  'sao', 'foi', 'ser', 'estar', 'esta', 'estao', 'pode', 'podem', 'consegue', 'conseguiria', 'consigo',
+  'fazer', 'realizar', 'mostre', 'mostra', 'me', 'voce', 'favor', 'por', 'uma', 'umas', 'uns',
+  'dos', 'das', 'no', 'na', 'nos', 'nas', 'os', 'as', 'em', 'ou', 'mais', 'menos', 'muito', 'pouco',
+  'algum', 'alguma', 'nenhum', 'nenhuma', 'todo', 'toda', 'todos', 'todas', 'mes', 'meses', 'ano', 'anos',
+  'chamado', 'chamados', 'departamento', 'setor', 'unidade', 'atendente', 'palavra', 'texto', 'presente',
+  'analise', 'dados', 'resumo', 'filtro', 'periodo', 'atual', 'nesse', 'nessa', 'desse', 'dessa'
+]);
+
+// Tira da pergunta as palavras que valem a pena buscar no texto real dos
+// chamados (Assunto/Devolutiva). Heurística simples (sem IA) — pode errar
+// em casos raros, mas cobre bem o caso comum de "chamados com X" / "sobre X".
+function extrairPalavrasChave(pergunta) {
+  const palavras = normalizarTexto(pergunta)
+    .split(/[^a-z0-9]+/)
+    .filter(p => p.length >= 4 && !PALAVRAS_IGNORADAS_BUSCA.has(p));
+  return Array.from(new Set(palavras)).slice(0, 6);
+}
+
+// Busca de verdade (substring, sem acento) no Assunto + Devolutiva +
+// Comentário de satisfação dos chamados do filtro atual, pra cada palavra
+// extraída da pergunta. Isso é o que faltava pro assistente conseguir
+// responder "quantos chamados mencionam 'lentidão'", por exemplo.
+function buscarPalavrasChaveNosChamados(relatorio, palavras) {
+  if (!palavras.length) return [];
+  return palavras.map(palavra => {
+    const encontrados = relatorio.filter(d => {
+      const texto = normalizarTexto([d.assunto, d.ultimaResposta, d.comentarioSatisfacao].filter(Boolean).join(' '));
+      return texto.includes(palavra);
+    });
+    const porDepto = {};
+    encontrados.forEach(d => { porDepto[d.departamento] = (porDepto[d.departamento] || 0) + 1; });
+    const deptOrdenados = Object.entries(porDepto).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const porDepartamento = {};
+    deptOrdenados.forEach(([dept, qtd]) => { porDepartamento[dept] = qtd; });
+
+    return {
+      palavraBuscada: palavra,
+      quantidadeEncontrada: encontrados.length,
+      porDepartamento: porDepartamento,
+      exemplos: encontrados.slice(0, 4).map(d => ({
+        assunto: d.assunto,
+        departamento: d.departamento,
+        trecho: String(d.ultimaResposta || d.comentarioSatisfacao || d.assunto || '').slice(0, 180)
+      }))
+    };
+  });
+}
+
 /**
  * Monta o resumo agregado dos chamados FILTRADOS (mesmos filtros da tela)
  * pra mandar pro backend/IA. Nunca manda os chamados "crus" — só contagens,
- * médias e alguns exemplos curtos de devolutiva.
+ * médias, alguns exemplos curtos de devolutiva, e o resultado de uma busca
+ * de texto real pelas palavras-chave que vieram na pergunta.
  */
-function construirResumoParaIA() {
+function construirResumoParaIA(pergunta) {
   const relatorio = dadosFiltrados.filter(d => d.situacao !== 'cancelado' && !d.ignorarTudo);
 
   const porTipo = {};
@@ -910,6 +965,9 @@ function construirResumoParaIA() {
     return { tipo: t.tipo, historico: ultimosMeses.map(([mesAno, quantidade]) => ({ mesAno, quantidade })) };
   });
 
+  const palavrasChave = extrairPalavrasChave(pergunta || '');
+  const buscaPalavrasChave = buscarPalavrasChaveNosChamados(relatorio, palavrasChave);
+
   return {
     totalChamadosNoFiltro: relatorio.length,
     filtrosAtivos: {
@@ -920,7 +978,8 @@ function construirResumoParaIA() {
     },
     topTipos: topTipos,
     topAssuntosRepetidos: topAssuntos,
-    historicoMensalPorTipo: historicoMensalPorTipo
+    historicoMensalPorTipo: historicoMensalPorTipo,
+    buscaPalavrasChave: buscaPalavrasChave
   };
 }
 
@@ -951,7 +1010,7 @@ async function enviarPerguntaIA(perguntaForcada) {
     const resp = await chamarBackend({
       action: 'perguntarAgenteIA',
       pergunta: pergunta,
-      resumo: construirResumoParaIA(),
+      resumo: construirResumoParaIA(pergunta),
       historico: historico
     });
     if (resp.success) {
