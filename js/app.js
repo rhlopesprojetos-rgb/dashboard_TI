@@ -94,7 +94,7 @@ function irParaPaginaApp(nome) {
   document.getElementById('filtrosBar').hidden = (nome === 'pendenciaIntra');
   if (nome === 'admin') carregarUsuarios();
   if (nome === 'pendenciaIntra') carregarPendenciasCadastro();
-  if (nome === 'assistenteIA') renderizarRepetitivos();
+  if (nome === 'assistenteIA') { renderizarRepetitivos(); carregarInstrucoesIA(); }
 }
 
 function alternarSidebar() {
@@ -836,20 +836,27 @@ function construirResumoParaIA() {
   const porTipo = {};
   relatorio.forEach(d => {
     const chave = d.tipo || 'Não informado';
-    if (!porTipo[chave]) porTipo[chave] = { tipo: chave, qtd: 0, somaTempo: 0, qtdComTempo: 0, negativos: 0 };
+    if (!porTipo[chave]) porTipo[chave] = { tipo: chave, qtd: 0, somaTempo: 0, qtdComTempo: 0, negativos: 0, departamentos: {} };
     porTipo[chave].qtd++;
     if (d._tempoMin != null) { porTipo[chave].somaTempo += d._tempoMin; porTipo[chave].qtdComTempo++; }
     if (d._satisfacao === 'ruim' || d._satisfacao === 'neutro') porTipo[chave].negativos++;
+    porTipo[chave].departamentos[d.departamento] = (porTipo[chave].departamentos[d.departamento] || 0) + 1;
   });
   const topTipos = Object.values(porTipo)
     .sort((a, b) => b.qtd - a.qtd)
     .slice(0, 12)
-    .map(t => ({
-      tipo: t.tipo,
-      quantidade: t.qtd,
-      tempoMedioMin: t.qtdComTempo ? Math.round(t.somaTempo / t.qtdComTempo) : null,
-      avaliacoesNegativas: t.negativos
-    }));
+    .map(t => {
+      const deptOrdenados = Object.entries(t.departamentos).sort((x, y) => y[1] - x[1]).slice(0, 8);
+      const porDepartamento = {};
+      deptOrdenados.forEach(([dept, qtd]) => { porDepartamento[dept] = qtd; });
+      return {
+        tipo: t.tipo,
+        quantidade: t.qtd,
+        tempoMedioMin: t.qtdComTempo ? Math.round(t.somaTempo / t.qtdComTempo) : null,
+        avaliacoesNegativas: t.negativos,
+        porDepartamento: porDepartamento
+      };
+    });
 
   const porAssunto = {};
   relatorio.forEach(d => {
@@ -876,6 +883,33 @@ function construirResumoParaIA() {
       };
     });
 
+  // Histórico mensal por tipo dos ÚLTIMOS 12 MESES — ignora o filtro de
+  // Período de propósito (mesma lógica da página Ano x Ano), mas respeita
+  // Unidade/Departamento/Atendente. Isso permite comparar meses (ex.: "e no
+  // mês passado?") mesmo com um período específico selecionado na tela.
+  const unidade = document.getElementById('filtroUnidade').value;
+  const departamento = document.getElementById('filtroDepartamento').value;
+  const atendente = document.getElementById('filtroAtendente').value;
+  const baseHistorico = dadosOriginais.filter(d => {
+    if (d.situacao === 'cancelado' || d.ignorarTudo) return false;
+    if (unidade && d.unidade !== unidade) return false;
+    if (departamento && d.departamento !== departamento) return false;
+    if (atendente && d.atendente !== atendente) return false;
+    return true;
+  });
+  const porTipoMes = {};
+  baseHistorico.forEach(d => {
+    if (!d._mesAno) return;
+    const tipo = d.tipo || 'Não informado';
+    if (!porTipoMes[tipo]) porTipoMes[tipo] = {};
+    porTipoMes[tipo][d._mesAno] = (porTipoMes[tipo][d._mesAno] || 0) + 1;
+  });
+  const historicoMensalPorTipo = topTipos.map(t => {
+    const meses = porTipoMes[t.tipo] || {};
+    const ultimosMeses = Object.entries(meses).sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
+    return { tipo: t.tipo, historico: ultimosMeses.map(([mesAno, quantidade]) => ({ mesAno, quantidade })) };
+  });
+
   return {
     totalChamadosNoFiltro: relatorio.length,
     filtrosAtivos: {
@@ -885,7 +919,8 @@ function construirResumoParaIA() {
       atendente: document.getElementById('filtroAtendente').value || 'Todos'
     },
     topTipos: topTipos,
-    topAssuntosRepetidos: topAssuntos
+    topAssuntosRepetidos: topAssuntos,
+    historicoMensalPorTipo: historicoMensalPorTipo
   };
 }
 
@@ -966,6 +1001,38 @@ function renderizarChatIA() {
 function limparConversaIA() {
   mensagensIA = [];
   renderizarChatIA();
+}
+
+// Instruções personalizadas (só admin edita, mas valem pra qualquer pergunta
+// de qualquer usuário — é a forma de "treinar"/instruir o assistente sem
+// precisar mexer em código).
+async function carregarInstrucoesIA() {
+  const secao = document.getElementById('secaoInstrucoesIA');
+  if (!USUARIO || USUARIO.papel !== 'admin') { secao.hidden = true; return; }
+  secao.hidden = false;
+  try {
+    const resp = await chamarBackend({ action: 'obterInstrucoesIA' });
+    if (resp.success) document.getElementById('instrucoesIATextarea').value = resp.instrucoes || '';
+  } catch (err) {
+    // Silencioso — não trava a página por causa disso.
+  }
+}
+
+async function salvarInstrucoesIA() {
+  const texto = document.getElementById('instrucoesIATextarea').value;
+  mostrarCarregando(true);
+  try {
+    const resp = await chamarBackend({ action: 'salvarInstrucoesIA', instrucoes: texto });
+    if (resp.success) {
+      alert('Instruções salvas! Já valem a partir da próxima pergunta.');
+    } else {
+      alert(resp.message || 'Erro ao salvar as instruções.');
+    }
+  } catch (err) {
+    alert('Erro de conexão ao salvar as instruções.');
+  } finally {
+    mostrarCarregando(false);
+  }
 }
 
 // ------------------------- ADMINISTRAÇÃO DE USUÁRIOS -------------------------
