@@ -49,5 +49,15 @@ chamarBackend = async function (payload) {
     PENDENCIAS_MOCK.desligadosPendentes = PENDENCIAS_MOCK.desligadosPendentes.filter(c => c.chave !== payload.chave);
     return { success: true };
   }
+  if (payload.action === 'perguntarAgenteIA') {
+    // No preview offline não existe chamada real de IA — só uma resposta
+    // fixa pra mostrar como o chat funciona.
+    const totalRepetidos = (payload.resumo && payload.resumo.topAssuntosRepetidos) || [];
+    const exemplo = totalRepetidos[0];
+    const texto = exemplo
+      ? `[Resposta de demonstração] O chamado mais repetitivo no filtro atual é "${exemplo.assunto}", com ${exemplo.quantidade} ocorrências, concentrado no departamento ${exemplo.departamentoMaisFrequente || 'não identificado'}. No modo real, o Gemini analisaria os exemplos de devolutiva pra sugerir a causa provável.`
+      : '[Resposta de demonstração] Não há chamados repetitivos suficientes no filtro atual pra essa análise. No modo real, a pergunta seria enviada ao Gemini junto com o resumo dos chamados filtrados.';
+    return { success: true, resposta: texto };
+  }
   return { success: false, message: 'Ação não disponível no modo demonstração.' };
 };
