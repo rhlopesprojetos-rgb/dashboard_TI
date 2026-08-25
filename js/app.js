@@ -917,9 +917,16 @@ function escolherMimeTypeGravacaoIA() {
   return candidatos.find(tipo => MediaRecorder.isTypeSupported(tipo)) || '';
 }
 
+let gravacaoAtivaIA = false;
+
 async function alternarGravacaoIA() {
-  if (gravadorIA && gravadorIA.state === 'recording') {
-    gravadorIA.stop(); // o resto (parar botão/timer) acontece no onstop
+  if (gravacaoAtivaIA) {
+    // Reseta a interface na hora — não espera o navegador terminar de
+    // processar o áudio, pra não parecer que travou.
+    gravacaoAtivaIA = false;
+    pararTimerGravacaoIA();
+    resetarBotaoGravarIA();
+    if (gravadorIA && gravadorIA.state !== 'inactive') gravadorIA.stop();
     return;
   }
 
@@ -936,12 +943,17 @@ async function alternarGravacaoIA() {
 
     gravadorIA.ondataavailable = e => { if (e.data && e.data.size > 0) gravacaoChunksIA.push(e.data); };
 
+    gravadorIA.onerror = () => {
+      stream.getTracks().forEach(t => t.stop());
+      gravacaoAtivaIA = false;
+      pararTimerGravacaoIA();
+      resetarBotaoGravarIA();
+      alert('Ocorreu um erro durante a gravação. Tente novamente.');
+    };
+
     gravadorIA.onstop = () => {
       stream.getTracks().forEach(t => t.stop()); // libera o microfone
-      pararTimerGravacaoIA();
-      document.getElementById('botaoGravarIA').classList.remove('gravando');
-      document.getElementById('botaoGravarIA').textContent = '🎙️';
-
+      // Interface já foi resetada no clique de "parar" — aqui só processa o áudio.
       const mimeFinal = gravadorIA.mimeType || mimeType || 'audio/webm';
       const duracaoSeg = Math.max(1, Math.round((Date.now() - gravacaoInicioIA) / 1000));
       const blob = new Blob(gravacaoChunksIA, { type: mimeFinal });
@@ -964,12 +976,19 @@ async function alternarGravacaoIA() {
 
     gravadorIA.start();
     gravacaoInicioIA = Date.now();
+    gravacaoAtivaIA = true;
     document.getElementById('botaoGravarIA').classList.add('gravando');
     document.getElementById('botaoGravarIA').textContent = '⏹️';
     iniciarTimerGravacaoIA();
   } catch (err) {
     alert('Não consegui acessar o microfone. Verifique se você permitiu o acesso ao microfone pro navegador nas configurações do site.');
   }
+}
+
+function resetarBotaoGravarIA() {
+  const botao = document.getElementById('botaoGravarIA');
+  botao.classList.remove('gravando');
+  botao.textContent = '🎙️';
 }
 
 function iniciarTimerGravacaoIA() {
@@ -1169,11 +1188,23 @@ function montarHistoricoIA() {
 
 async function enviarPerguntaIA(perguntaForcada) {
   const inputEl = document.getElementById('perguntaIAInput');
-  const pergunta = (perguntaForcada !== undefined ? perguntaForcada : inputEl.value).trim();
-  if (!pergunta) return;
+  const imagem = imagemAnexadaIA; // captura antes de limpar
+  let pergunta = (perguntaForcada !== undefined ? perguntaForcada : inputEl.value).trim();
+
+  if (!pergunta && !imagem) return; // precisa de pelo menos um dos dois
+
+  if (!pergunta && imagem) {
+    // Enviou só o anexo, sem escrever nada — usa uma pergunta padrão pro
+    // tipo de anexo em vez de bloquear o envio.
+    const perguntasPadrao = {
+      audio: 'Ouça o áudio anexado, resuma o que foi dito e me ajude com base nisso.',
+      pdf: 'Analise o PDF anexado e me ajude com base no conteúdo dele.',
+      imagem: 'Analise a imagem anexada e me ajude com base nela.'
+    };
+    pergunta = perguntasPadrao[imagem.tipo] || 'Analise o arquivo anexado e me ajude com base nele.';
+  }
 
   const historico = montarHistoricoIA();
-  const imagem = imagemAnexadaIA; // captura antes de limpar
   mensagensIA.push({ autor: 'usuario', texto: pergunta, tipoAnexo: imagem ? imagem.tipo : null });
   if (perguntaForcada === undefined) inputEl.value = '';
   removerImagemIA();
@@ -1218,7 +1249,12 @@ function renderizarChatIA() {
 }
 
 function limparConversaIA() {
-  if (gravadorIA && gravadorIA.state === 'recording') gravadorIA.stop();
+  if (gravacaoAtivaIA) {
+    gravacaoAtivaIA = false;
+    pararTimerGravacaoIA();
+    resetarBotaoGravarIA();
+    if (gravadorIA && gravadorIA.state !== 'inactive') gravadorIA.stop();
+  }
   mensagensIA = [];
   removerImagemIA();
   renderizarChatIA();
