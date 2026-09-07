@@ -102,6 +102,7 @@
       <div class="pagina-app ativa" id="pg-visaoGeral">
         <div class="conteudo">
           <div class="secao-header"><h2>Visão Geral</h2></div>
+          <p style="color:var(--cor-texto-sec); font-size:12.5px; margin-top:-10px;">💡 Clique numa barra ou fatia dos gráficos abaixo pra filtrar todo o painel por aquele valor (clique de novo pra tirar o filtro).</p>
 
           <div class="cards-resumo" id="kpisVisaoGeral"></div>
 
@@ -318,14 +319,15 @@
         </div>
       </div>
 
-      <!-- PÁGINA: ASSISTENTE IA (chamados repetitivos + perguntas) -->
+      <!-- PÁGINA: ASSISTENTE IA (configurações — o chat em si agora é o balão flutuante) -->
       <div class="pagina-app" id="pg-assistenteIA">
         <div class="conteudo">
           <div class="secao-header"><h2>Assistente IA</h2></div>
           <p style="color:var(--cor-texto-sec); font-size:13px; margin-top:-10px;">
-            Usa os chamados já filtrados acima (Período/Unidade/Departamento/Atendente) pra identificar padrões e
-            responder perguntas. As respostas são geradas por IA (Google Gemini) com base nesses dados — sempre
-            confira antes de agir.
+            Pra conversar com o assistente, use o balão 🤖 no canto inferior direito da tela — ele fica disponível em
+            qualquer página do painel. Aqui ficam só as configurações. Ele usa os chamados já filtrados
+            (Período/Unidade/Departamento/Atendente) pra identificar padrões e responder perguntas — as respostas são
+            geradas por IA (Google Gemini) com base nesses dados, sempre confira antes de agir.
           </p>
 
           <div class="secao" id="secaoInstrucoesIA" hidden>
@@ -337,32 +339,6 @@
             <textarea id="instrucoesIATextarea" class="input-linha" style="width:100%; min-height:110px; resize:vertical; font-family:inherit;" placeholder="Ex.: Sempre responda em tópicos curtos. Ao comparar meses, destaque variações acima de 20%. Trate 'rede' e 'wifi' como o mesmo assunto."></textarea>
             <div style="margin-top:10px; display:flex; justify-content:flex-end;">
               <button class="botao botao-primario" onclick="salvarInstrucoesIA()">Salvar instruções</button>
-            </div>
-          </div>
-
-          <div class="secao">
-            <div class="secao-header">
-              <h3 style="margin:0;">💬 Perguntar ao assistente</h3>
-              <button class="botao botao-secundario" onclick="limparConversaIA()">Limpar conversa</button>
-            </div>
-            <div class="chat-caixa" id="chatIACorpo">
-              <div class="chat-vazio" id="chatIAVazio">Pergunte algo como "Por que os chamados de impressora se repetem tanto no Comercial?"</div>
-            </div>
-            <div class="chat-status" id="statusIA" hidden>🤖 Pensando...</div>
-            <div class="chat-gravando" id="chatGravandoStatus" hidden>
-              <span class="ponto-gravando"></span> Gravando... <span id="chatGravandoTempo">0:00</span> — clique no microfone pra parar
-            </div>
-            <div class="chat-imagem-anexada" id="chatImagemAnexada" hidden>
-              <img id="chatImagemPreview" alt="Pré-visualização da imagem anexada">
-              <span id="chatImagemNome"></span>
-              <button type="button" class="chat-imagem-remover" onclick="removerImagemIA()" title="Remover imagem">✕</button>
-            </div>
-            <div class="chat-input-linha">
-              <input type="file" id="chatImagemInput" accept="image/*,.pdf,application/pdf,audio/*" hidden onchange="anexarImagemIA(event)">
-              <button type="button" class="botao botao-secundario chat-botao-anexar" onclick="document.getElementById('chatImagemInput').click()" title="Anexar print, PDF ou áudio">📎</button>
-              <button type="button" class="botao botao-secundario chat-botao-anexar" id="botaoGravarIA" onclick="alternarGravacaoIA()" title="Gravar áudio">🎙️</button>
-              <input type="text" id="perguntaIAInput" placeholder="Escreva sua pergunta sobre os chamados..." onkeydown="if(event.key==='Enter') enviarPerguntaIA()">
-              <button class="botao botao-primario" onclick="enviarPerguntaIA()">Perguntar</button>
             </div>
           </div>
         </div>
@@ -387,6 +363,40 @@
       </div>
 
     </main>
+
+    <!-- WIDGET FLUTUANTE: ASSISTENTE IA -->
+    <button type="button" class="assistente-bolha" id="assistenteBolha" onclick="alternarPainelIAFlutuante()" title="Falar com o Assistente IA">🤖</button>
+
+    <div class="assistente-painel" id="assistentePainel" hidden>
+      <div class="assistente-painel-cabecalho">
+        <span>🤖 Agente de IA</span>
+        <button type="button" class="assistente-painel-fechar" onclick="alternarPainelIAFlutuante()" title="Fechar">✕</button>
+      </div>
+      <div class="assistente-painel-corpo">
+        <div class="chat-caixa" id="chatIACorpo">
+          <div class="chat-vazio" id="chatIAVazio">Pergunte algo como "Por que os chamados de impressora se repetem tanto no Comercial?"</div>
+        </div>
+        <div class="chat-status" id="statusIA" hidden>🤖 Pensando...</div>
+        <div class="chat-gravando" id="chatGravandoStatus" hidden>
+          <span class="ponto-gravando"></span> Gravando... <span id="chatGravandoTempo">0:00</span> — clique no microfone pra parar
+        </div>
+        <div class="chat-imagem-anexada" id="chatImagemAnexada" hidden>
+          <img id="chatImagemPreview" alt="Pré-visualização da imagem anexada">
+          <span id="chatImagemNome"></span>
+          <button type="button" class="chat-imagem-remover" onclick="removerImagemIA()" title="Remover imagem">✕</button>
+        </div>
+        <div class="chat-input-linha">
+          <input type="file" id="chatImagemInput" accept="image/*,.pdf,application/pdf,audio/*" hidden onchange="anexarImagemIA(event)">
+          <button type="button" class="botao botao-secundario chat-botao-anexar" onclick="document.getElementById('chatImagemInput').click()" title="Anexar print, PDF ou áudio">📎</button>
+          <button type="button" class="botao botao-secundario chat-botao-anexar" id="botaoGravarIA" onclick="alternarGravacaoIA()" title="Gravar áudio">🎙️</button>
+          <input type="text" id="perguntaIAInput" placeholder="Pergunte algo, ex: quanto o..." onkeydown="if(event.key==='Enter') enviarPerguntaIA()">
+          <button class="botao botao-primario" onclick="enviarPerguntaIA()">Enviar</button>
+        </div>
+        <div style="text-align:right; margin-top:8px;">
+          <button type="button" class="botao botao-secundario" style="font-size:11px; padding:4px 10px;" onclick="limparConversaIA()">Limpar conversa</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
