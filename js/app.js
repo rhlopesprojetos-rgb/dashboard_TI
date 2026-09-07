@@ -4,8 +4,8 @@ let TOKEN = null;
 let USUARIO = null;
 let dadosOriginais = [];
 let dadosFiltrados = [];
-let paginaAtual = 1;
-const ITENS_POR_PAGINA = 20;
+const LOTE_LISTA = 30; // quantas linhas carregar por vez na rolagem infinita
+let quantidadeVisivelLista = LOTE_LISTA;
 const CHAVE_TOKEN = 'ti_lopes_token';
 const CHAVE_TEMA = 'ti_lopes_tema';
 const CHAVE_SIDEBAR = 'ti_lopes_sidebar_recolhida';
@@ -247,7 +247,7 @@ function aplicarFiltros() {
     return true;
   });
 
-  paginaAtual = 1;
+  quantidadeVisivelLista = LOTE_LISTA;
   renderizarTudo();
 }
 
@@ -681,11 +681,11 @@ function formatarDuracao(minutos) {
 // ------------------------- LISTA DE CHAMADOS -------------------------
 
 function renderizarLista() {
-  const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
-  const pagina = dadosFiltrados.slice(inicio, inicio + ITENS_POR_PAGINA);
   document.getElementById('listaVazia').hidden = dadosFiltrados.length !== 0;
 
-  document.getElementById('listaCorpo').innerHTML = pagina.map(d => `
+  const visiveis = dadosFiltrados.slice(0, quantidadeVisivelLista);
+
+  document.getElementById('listaCorpo').innerHTML = visiveis.map(d => `
     <tr>
       <td>${escapeHtml(d.id)}</td>
       <td>${escapeHtml(d.assunto || '—')}</td>
@@ -706,8 +706,35 @@ function renderizarLista() {
       </td>
     </tr>
   `).join('');
-  renderizarPaginacao();
+
+  renderizarProgressoLista(visiveis.length);
 }
+
+function renderizarProgressoLista(qtdVisivel) {
+  const el = document.getElementById('listaProgresso');
+  if (!el) return;
+  if (dadosFiltrados.length === 0) {
+    el.textContent = '';
+  } else if (qtdVisivel >= dadosFiltrados.length) {
+    el.textContent = `Mostrando todos os ${dadosFiltrados.length.toLocaleString('pt-BR')} chamados.`;
+  } else {
+    el.textContent = `Mostrando ${qtdVisivel.toLocaleString('pt-BR')} de ${dadosFiltrados.length.toLocaleString('pt-BR')} chamados — role pra baixo pra carregar mais.`;
+  }
+}
+
+// Rolagem infinita: só na página "Chamados", carrega mais linhas quando o
+// usuário chega perto do fim da página.
+window.addEventListener('scroll', () => {
+  const paginaLista = document.getElementById('pg-lista');
+  if (!paginaLista || !paginaLista.classList.contains('ativa')) return;
+  if (quantidadeVisivelLista >= dadosFiltrados.length) return;
+
+  const pertoDoFim = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 300);
+  if (pertoDoFim) {
+    quantidadeVisivelLista += LOTE_LISTA;
+    renderizarLista();
+  }
+});
 
 function badgeSituacao(situacao) {
   const classe = situacao === 'concluido' ? 'badge-concluido' : situacao === 'cancelado' ? 'badge-cancelado' : situacao === 'atribuido' ? 'badge-atribuido' : 'badge-aberto';
@@ -719,28 +746,6 @@ function rotuloSatisfacao(valor) {
   if (valor === 'neutro') return '🟡 Neutro';
   if (valor === 'ruim') return '🔴 Ruim';
   return '—';
-}
-
-function renderizarPaginacao() {
-  const totalPaginas = Math.max(1, Math.ceil(dadosFiltrados.length / ITENS_POR_PAGINA));
-  const el = document.getElementById('listaPaginacao');
-  let html = `<button ${paginaAtual === 1 ? 'disabled' : ''} onclick="mudarPagina(${paginaAtual - 1})">‹</button>`;
-  for (let p = 1; p <= totalPaginas; p++) {
-    if (p === 1 || p === totalPaginas || Math.abs(p - paginaAtual) <= 1) {
-      html += `<button class="${p === paginaAtual ? 'ativo' : ''}" onclick="mudarPagina(${p})">${p}</button>`;
-    } else if (Math.abs(p - paginaAtual) === 2) {
-      html += `<span>…</span>`;
-    }
-  }
-  html += `<button ${paginaAtual === totalPaginas ? 'disabled' : ''} onclick="mudarPagina(${paginaAtual + 1})">›</button>`;
-  el.innerHTML = html;
-}
-
-function mudarPagina(p) {
-  const totalPaginas = Math.max(1, Math.ceil(dadosFiltrados.length / ITENS_POR_PAGINA));
-  if (p < 1 || p > totalPaginas) return;
-  paginaAtual = p;
-  renderizarLista();
 }
 
 async function alternarIgnorar(id, campo) {
