@@ -282,6 +282,8 @@ function renderizarTudo() {
   renderizarGraficoQtdDepartamento(relatorio);
   renderizarGraficoTipoChamado(relatorio);
   renderizarGraficoTopSolicitantes(relatorio);
+  renderizarGraficoDuracaoBuckets(relatorio);
+  renderizarTabelaDesempenhoTecnico(relatorio);
   renderizarTabelaNegativas(relatorioSatisfacao);
   renderizarAnoAno();
   renderizarLista(); // usa dadosFiltrados (todas as situações, inclusive cancelados/ignorados)
@@ -419,6 +421,66 @@ function renderizarGraficoTopSolicitantes(relatorio) {
     plugins: { legend: { display: false } },
     scales: { x: { beginAtZero: true } }
   }, 'busca');
+}
+
+function renderizarGraficoDuracaoBuckets(relatorio) {
+  const buckets = { '< 1h': 0, '1h - 4h': 0, '4h - 24h': 0, '> 24h': 0 };
+  relatorio.forEach(d => {
+    if (d._tempoMin == null) return;
+    if (d._tempoMin < 60) buckets['< 1h']++;
+    else if (d._tempoMin < 240) buckets['1h - 4h']++;
+    else if (d._tempoMin < 1440) buckets['4h - 24h']++;
+    else buckets['> 24h']++;
+  });
+
+  criarOuAtualizarChart('chDuracaoBuckets', 'bar', {
+    labels: Object.keys(buckets),
+    datasets: [{
+      data: Object.values(buckets),
+      backgroundColor: ['rgba(26,39,68,1)', 'rgba(26,39,68,0.75)', 'rgba(26,39,68,0.5)', 'rgba(26,39,68,0.3)']
+    }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+}
+
+function mediana(lista) {
+  if (!lista.length) return null;
+  const ordenado = [...lista].sort((a, b) => a - b);
+  const meio = Math.floor(ordenado.length / 2);
+  return ordenado.length % 2 !== 0 ? ordenado[meio] : (ordenado[meio - 1] + ordenado[meio]) / 2;
+}
+
+function renderizarTabelaDesempenhoTecnico(relatorio) {
+  const concluidos = relatorio.filter(d => d.situacao === 'concluido');
+  const totalConcluidos = concluidos.length;
+
+  const grupos = {};
+  concluidos.forEach(d => {
+    const nome = d.atendente || 'Não informado';
+    if (!grupos[nome]) grupos[nome] = { qtd: 0, tempos: [] };
+    grupos[nome].qtd++;
+    if (d._tempoMin != null) grupos[nome].tempos.push(d._tempoMin);
+  });
+
+  const linhas = Object.entries(grupos)
+    .map(([nome, g]) => ({
+      nome,
+      qtd: g.qtd,
+      percentual: totalConcluidos ? (g.qtd / totalConcluidos * 100) : 0,
+      tempoMedio: g.tempos.length ? g.tempos.reduce((a, b) => a + b, 0) / g.tempos.length : null,
+      tempoMediano: g.tempos.length ? mediana(g.tempos) : null
+    }))
+    .sort((a, b) => b.qtd - a.qtd);
+
+  document.getElementById('tabelaDesempenhoTecnicoCorpo').innerHTML = linhas.map(l => `
+    <tr>
+      <td>${escapeHtml(l.nome)}</td>
+      <td class="num">${l.qtd.toLocaleString('pt-BR')}</td>
+      <td class="num">${l.percentual.toFixed(1)}%</td>
+      <td class="num">${l.tempoMedio !== null ? formatarDuracao(l.tempoMedio) : '—'}</td>
+      <td class="num">${l.tempoMediano !== null ? formatarDuracao(l.tempoMediano) : '—'}</td>
+    </tr>
+  `).join('');
+  document.getElementById('tabelaDesempenhoTecnicoVazia').hidden = linhas.length > 0;
 }
 
 function renderizarTabelaNegativas(relatorioSatisfacao) {
@@ -724,16 +786,32 @@ function renderizarProgressoLista(qtdVisivel) {
 
 // Rolagem infinita: só na página "Chamados", carrega mais linhas quando o
 // usuário chega perto do fim da página.
-window.addEventListener('scroll', () => {
+// Rolagem infinita: escuta tanto a janela quanto o container ".principal-app"
+// (que na prática é quem rola de verdade — como ele tem overflow-x:hidden e
+// fica ao lado de uma barra lateral com altura fixa, o navegador acaba
+// tratando o overflow-y dele como "auto" e ele vira o container com scroll
+// interno, em vez da window).
+function verificarRolagemInfinitaLista() {
   const paginaLista = document.getElementById('pg-lista');
   if (!paginaLista || !paginaLista.classList.contains('ativa')) return;
   if (quantidadeVisivelLista >= dadosFiltrados.length) return;
 
-  const pertoDoFim = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 300);
-  if (pertoDoFim) {
+  const areaPrincipal = document.querySelector('.principal-app');
+  const pertoDoFimJanela = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 300);
+  const pertoDoFimArea = areaPrincipal
+    ? (areaPrincipal.scrollTop + areaPrincipal.clientHeight) >= (areaPrincipal.scrollHeight - 300)
+    : false;
+
+  if (pertoDoFimJanela || pertoDoFimArea) {
     quantidadeVisivelLista += LOTE_LISTA;
     renderizarLista();
   }
+}
+
+window.addEventListener('scroll', verificarRolagemInfinitaLista);
+document.addEventListener('DOMContentLoaded', () => {
+  const areaPrincipal = document.querySelector('.principal-app');
+  if (areaPrincipal) areaPrincipal.addEventListener('scroll', verificarRolagemInfinitaLista);
 });
 
 function badgeSituacao(situacao) {
