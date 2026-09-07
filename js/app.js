@@ -922,27 +922,13 @@ function anexarImagemIA(evento) {
     const base64 = base64Completo.substring(base64Completo.indexOf(',') + 1);
     const mimeType = arquivo.type || (tipo === 'pdf' ? 'application/pdf' : 'image/png');
     imagemAnexadaIA = { base64: base64, mimeType: mimeType, nome: arquivo.name, tipo: tipo };
-    renderizarImagemAnexadaIA(tipo === 'imagem' ? base64Completo : null);
   };
   leitor.onerror = () => alert('Não consegui ler esse arquivo. Tente outro.');
   leitor.readAsDataURL(arquivo);
 }
 
-const ICONE_ANEXO = { imagem: '🖼️', pdf: '📄', audio: '🎤' };
-
-function renderizarImagemAnexadaIA(urlPreview) {
-  const caixa = document.getElementById('chatImagemAnexada');
-  if (!imagemAnexadaIA) { caixa.hidden = true; return; }
-  const img = document.getElementById('chatImagemPreview');
-  img.hidden = !urlPreview;
-  if (urlPreview) img.src = urlPreview;
-  document.getElementById('chatImagemNome').textContent = (ICONE_ANEXO[imagemAnexadaIA.tipo] || '📎') + ' ' + imagemAnexadaIA.nome;
-  caixa.hidden = false;
-}
-
 function removerImagemIA() {
   imagemAnexadaIA = null;
-  document.getElementById('chatImagemAnexada').hidden = true;
 }
 
 // ---- Gravar áudio direto do navegador (microfone) ----
@@ -950,7 +936,6 @@ function removerImagemIA() {
 let gravadorIA = null;
 let gravacaoChunksIA = [];
 let gravacaoInicioIA = null;
-let gravacaoTimerIA = null;
 
 function formatarDuracaoCurta(segundos) {
   const m = Math.floor(segundos / 60);
@@ -971,7 +956,6 @@ async function alternarGravacaoIA() {
     // Reseta a interface na hora — não espera o navegador terminar de
     // processar o áudio, pra não parecer que travou.
     gravacaoAtivaIA = false;
-    pararTimerGravacaoIA();
     resetarBotaoGravarIA();
     if (gravadorIA && gravadorIA.state !== 'inactive') gravadorIA.stop();
     return;
@@ -993,7 +977,6 @@ async function alternarGravacaoIA() {
     gravadorIA.onerror = () => {
       stream.getTracks().forEach(t => t.stop());
       gravacaoAtivaIA = false;
-      pararTimerGravacaoIA();
       resetarBotaoGravarIA();
       alert('Ocorreu um erro durante a gravação. Tente novamente.');
     };
@@ -1015,7 +998,6 @@ async function alternarGravacaoIA() {
           nome: `Gravação de áudio (${formatarDuracaoCurta(duracaoSeg)})`,
           tipo: 'audio'
         };
-        renderizarImagemAnexadaIA(null);
       };
       leitor.onerror = () => alert('Não consegui processar a gravação. Tente de novo.');
       leitor.readAsDataURL(blob);
@@ -1026,7 +1008,6 @@ async function alternarGravacaoIA() {
     gravacaoAtivaIA = true;
     document.getElementById('botaoGravarIA').classList.add('gravando');
     document.getElementById('botaoGravarIA').textContent = '⏹️';
-    iniciarTimerGravacaoIA();
   } catch (err) {
     alert('Não consegui acessar o microfone. Verifique se você permitiu o acesso ao microfone pro navegador nas configurações do site.');
   }
@@ -1036,21 +1017,6 @@ function resetarBotaoGravarIA() {
   const botao = document.getElementById('botaoGravarIA');
   botao.classList.remove('gravando');
   botao.textContent = '🎙️';
-}
-
-function iniciarTimerGravacaoIA() {
-  const status = document.getElementById('chatGravandoStatus');
-  status.hidden = false;
-  document.getElementById('chatGravandoTempo').textContent = '0:00';
-  gravacaoTimerIA = setInterval(() => {
-    const seg = Math.round((Date.now() - gravacaoInicioIA) / 1000);
-    document.getElementById('chatGravandoTempo').textContent = formatarDuracaoCurta(seg);
-  }, 500);
-}
-
-function pararTimerGravacaoIA() {
-  clearInterval(gravacaoTimerIA);
-  document.getElementById('chatGravandoStatus').hidden = true;
 }
 
 function normalizarTexto(t) {
@@ -1309,7 +1275,6 @@ function alternarPainelIAFlutuante() {
 function limparConversaIA() {
   if (gravacaoAtivaIA) {
     gravacaoAtivaIA = false;
-    pararTimerGravacaoIA();
     resetarBotaoGravarIA();
     if (gravadorIA && gravadorIA.state !== 'inactive') gravadorIA.stop();
   }
