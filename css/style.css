@@ -173,3 +173,38 @@ tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-
 .chat-gravando { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--cor-erro); margin-bottom: 8px; }
 .ponto-gravando { width: 8px; height: 8px; border-radius: 50%; background: var(--cor-erro); animation: piscar-gravando 1s infinite; }
 @keyframes piscar-gravando { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ---------- WIDGET FLUTUANTE DO ASSISTENTE IA ---------- */
+.assistente-bolha {
+  position: fixed; right: 24px; bottom: 24px; z-index: 1000;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--cor-primaria); color: #fff; border: none;
+  font-size: 26px; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s ease;
+}
+.assistente-bolha:hover { transform: scale(1.06); }
+
+.assistente-painel {
+  position: fixed; right: 24px; bottom: 92px; z-index: 1000;
+  width: min(380px, calc(100vw - 32px)); max-height: min(560px, calc(100vh - 140px));
+  display: flex; flex-direction: column;
+  background: var(--cor-sidebar); border: 1px solid var(--cor-borda); border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.28);
+  overflow: hidden;
+}
+.assistente-painel-cabecalho {
+  background: var(--cor-primaria); color: #fff; padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 700; font-size: 15px; flex-shrink: 0;
+}
+.assistente-painel-fechar { background: none; border: none; color: #fff; font-size: 16px; cursor: pointer; padding: 2px 6px; opacity: 0.9; }
+.assistente-painel-fechar:hover { opacity: 1; }
+.assistente-painel-corpo { padding: 14px 16px 16px; overflow-y: auto; display: flex; flex-direction: column; }
+.assistente-painel-corpo .chat-caixa { flex: 1; max-height: none; }
+
+@media (max-width: 480px) {
+  .assistente-painel { right: 12px; left: 12px; width: auto; bottom: 84px; }
+  .assistente-bolha { right: 16px; bottom: 16px; }
+}
