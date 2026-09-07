@@ -151,8 +151,28 @@
           </div>
 
           <div class="card-grafico" style="margin-bottom:20px;">
+            <h3>Duração dos Chamados</h3>
+            <p style="color:var(--cor-texto-sec); font-size:12px; margin:-6px 0 10px;">Tempo entre abertura e conclusão, agrupado em faixas.</p>
+            <canvas id="chDuracaoBuckets"></canvas>
+          </div>
+
+          <div class="card-grafico" style="margin-bottom:20px;">
             <h3>Top 10 Solicitantes (quem mais abre chamado)</h3>
             <canvas id="chTopSolicitantes"></canvas>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header"><h2>Desempenho por Técnico</h2></div>
+            <p style="color:var(--cor-texto-sec); font-size:12px; margin-top:-10px;">Volume atendido e tempo de atendimento no período selecionado.</p>
+            <div class="tabela-scroll">
+              <table>
+                <thead>
+                  <tr><th>Técnico</th><th class="num">Chamados</th><th class="num">% do Total</th><th class="num">Tempo Médio</th><th class="num">Tempo Mediano</th></tr>
+                </thead>
+                <tbody id="tabelaDesempenhoTecnicoCorpo"></tbody>
+              </table>
+            </div>
+            <div id="tabelaDesempenhoTecnicoVazia" class="vazio" hidden>Nenhum chamado concluído no período selecionado.</div>
           </div>
 
           <div class="secao">
