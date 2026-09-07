@@ -194,6 +194,7 @@ tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-
   box-shadow: 0 12px 32px rgba(0,0,0,0.28);
   overflow: hidden;
 }
+.assistente-painel[hidden] { display: none; }
 .assistente-painel-cabecalho {
   background: var(--cor-primaria); color: #fff; padding: 14px 16px;
   display: flex; align-items: center; justify-content: space-between;
