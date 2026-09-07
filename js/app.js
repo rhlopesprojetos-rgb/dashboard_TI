@@ -241,7 +241,7 @@ function aplicarFiltros() {
     if (departamento && d.departamento !== departamento) return false;
     if (atendente && d.atendente !== atendente) return false;
     if (busca) {
-      const alvo = `${d.id} ${d.solicitante} ${d.assunto}`.toLowerCase();
+      const alvo = `${d.id} ${d.solicitante} ${d.assunto} ${d.tipo}`.toLowerCase();
       if (alvo.indexOf(busca) === -1) return false;
     }
     return true;
@@ -324,7 +324,7 @@ function renderizarGraficoUnidadePizza(relatorio) {
   criarOuAtualizarChart('chUnidadePizza', 'pie', {
     labels: entradas.map(e => e[0]),
     datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.paleta }]
-  }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } });
+  }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }, 'unidade');
 }
 
 function renderizarGraficoQtdAtendente(relatorio) {
@@ -335,7 +335,7 @@ function renderizarGraficoQtdAtendente(relatorio) {
   criarOuAtualizarChart('chQtdAtendente', 'bar', {
     labels: entradas.map(e => e[0]),
     datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.primaria }]
-  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }, 'atendente');
 }
 
 function renderizarGraficoTempoAtendente(relatorio) {
@@ -350,7 +350,7 @@ function renderizarGraficoTempoAtendente(relatorio) {
   }, {
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
     scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
-  });
+  }, 'atendente');
 }
 
 function renderizarGraficoTempoDepartamento(relatorio) {
@@ -365,7 +365,7 @@ function renderizarGraficoTempoDepartamento(relatorio) {
   }, {
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
     scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
-  });
+  }, 'departamento');
 }
 
 function renderizarGraficoTempoUnidade(relatorio) {
@@ -380,7 +380,7 @@ function renderizarGraficoTempoUnidade(relatorio) {
   }, {
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatarDuracao(ctx.raw) } } },
     scales: { y: { beginAtZero: true, ticks: { callback: v => formatarDuracao(v) } } }
-  });
+  }, 'unidade');
 }
 
 function renderizarGraficoQtdDepartamento(relatorio) {
@@ -390,7 +390,7 @@ function renderizarGraficoQtdDepartamento(relatorio) {
   criarOuAtualizarChart('chQtdDepartamento', 'bar', {
     labels: entradas.map(e => e[0]),
     datasets: [{ data: entradas.map(e => e[1]), backgroundColor: CORES.paleta[4] }]
-  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } });
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }, 'departamento');
 }
 
 function renderizarGraficoTipoChamado(relatorio) {
@@ -404,7 +404,7 @@ function renderizarGraficoTipoChamado(relatorio) {
     indexAxis: 'y',
     plugins: { legend: { display: false } },
     scales: { x: { beginAtZero: true } }
-  });
+  }, 'busca');
 }
 
 function renderizarGraficoTopSolicitantes(relatorio) {
@@ -418,7 +418,7 @@ function renderizarGraficoTopSolicitantes(relatorio) {
     indexAxis: 'y',
     plugins: { legend: { display: false } },
     scales: { x: { beginAtZero: true } }
-  });
+  }, 'busca');
 }
 
 function renderizarTabelaNegativas(relatorioSatisfacao) {
@@ -590,16 +590,63 @@ function renderizarAnoAno() {
     : `<tr><td colspan="4" class="vazio">Sem meses com volume suficiente (mín. ${MIN_REGISTROS_RANKING_MES} avaliações).</td></tr>`;
 }
 
-function criarOuAtualizarChart(canvasId, tipo, data, options) {
+function criarOuAtualizarChart(canvasId, tipo, data, options, campoFiltro) {
   if (typeof Chart === 'undefined') return; // CDN bloqueado — não trava o resto do painel
   if (charts[canvasId]) charts[canvasId].destroy();
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
+
+  const opcoesFinais = Object.assign({ responsive: true, maintainAspectRatio: true }, options);
+
+  // Clique numa barra/fatia filtra o painel inteiro por aquele valor (clicar
+  // de novo no mesmo valor tira o filtro). Só ativa quando o gráfico
+  // informa a qual filtro ele corresponde (campoFiltro).
+  if (campoFiltro) {
+    opcoesFinais.onClick = (evento, elementos) => {
+      if (!elementos.length) return;
+      const valor = data.labels[elementos[0].index];
+      filtrarPorClique(campoFiltro, valor);
+    };
+    opcoesFinais.onHover = (evento, elementos) => {
+      if (evento.native && evento.native.target) {
+        evento.native.target.style.cursor = elementos.length ? 'pointer' : 'default';
+      }
+    };
+  }
+
   charts[canvasId] = new Chart(ctx, {
     type: tipo,
     data: data,
-    options: Object.assign({ responsive: true, maintainAspectRatio: true }, options)
+    options: opcoesFinais
   });
+}
+
+/**
+ * Aplica (ou remove, se já for o mesmo valor — funciona como um toggle) um
+ * filtro a partir de um clique em gráfico. "unidade"/"departamento"/
+ * "atendente" usam os selects já existentes na barra de filtros; "busca"
+ * (usado por gráficos sem select próprio, tipo Tipo de Chamado e Top
+ * Solicitantes) usa a caixa de busca da página Chamados.
+ */
+function filtrarPorClique(campo, valor) {
+  if (!valor) return;
+
+  const mapaSelect = { unidade: 'filtroUnidade', departamento: 'filtroDepartamento', atendente: 'filtroAtendente' };
+
+  if (mapaSelect[campo]) {
+    const select = document.getElementById(mapaSelect[campo]);
+    select.value = (select.value === valor) ? '' : valor;
+    aplicarFiltros();
+    return;
+  }
+
+  if (campo === 'busca') {
+    const buscaEl = document.getElementById('buscaLista');
+    const jaFiltrado = buscaEl.value.trim().toLowerCase() === valor.trim().toLowerCase();
+    buscaEl.value = jaFiltrado ? '' : valor;
+    irParaPaginaApp('lista');
+    aplicarFiltros();
+  }
 }
 
 function agrupar(lista, campo) {
@@ -1246,6 +1293,17 @@ function renderizarChatIA() {
     <div class="chat-mensagem ${m.autor === 'usuario' ? 'chat-usuario' : 'chat-assistente'} ${m.erro ? 'chat-erro' : ''}">${m.tipoAnexo ? `<div class="chat-tag-imagem">📎 ${m.tipoAnexo} anexado(a)</div>` : ''}${escapeHtml(m.texto)}</div>
   `).join('');
   caixa.scrollTop = caixa.scrollHeight;
+}
+
+// Abre/fecha o balão flutuante do Assistente IA (fica disponível em
+// qualquer página do painel, não só na página "Assistente IA").
+function alternarPainelIAFlutuante() {
+  const painel = document.getElementById('assistentePainel');
+  painel.hidden = !painel.hidden;
+  if (!painel.hidden) {
+    renderizarChatIA();
+    document.getElementById('perguntaIAInput').focus();
+  }
 }
 
 function limparConversaIA() {
