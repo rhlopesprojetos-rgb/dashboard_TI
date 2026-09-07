@@ -115,6 +115,7 @@ body { margin: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sa
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th { text-align: left; color: var(--cor-texto-sec); font-size: 11px; text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-space: nowrap; }
 tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-space: nowrap; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .tabela-scroll { overflow-x: auto; }
 .vazio { text-align: center; color: var(--cor-texto-sec); font-size: 13px; padding: 24px; }
 .lista-progresso { text-align: center; color: var(--cor-texto-sec); font-size: 12.5px; margin-top: 16px; }
