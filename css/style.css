@@ -117,9 +117,7 @@ thead th { text-align: left; color: var(--cor-texto-sec); font-size: 11px; text-
 tbody td { padding: 10px 12px; border-bottom: 1px solid var(--cor-borda); white-space: nowrap; }
 .tabela-scroll { overflow-x: auto; }
 .vazio { text-align: center; color: var(--cor-texto-sec); font-size: 13px; padding: 24px; }
-.paginacao { display: flex; justify-content: center; gap: 6px; margin-top: 16px; }
-.paginacao button { min-width: 32px; height: 32px; border: 1px solid var(--cor-borda); background: var(--cor-sidebar); color: var(--cor-texto); border-radius: 8px; cursor: pointer; }
-.paginacao button.ativo { background: var(--cor-primaria); border-color: var(--cor-primaria); color: #fff; }
+.lista-progresso { text-align: center; color: var(--cor-texto-sec); font-size: 12.5px; margin-top: 16px; }
 
 .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
 .badge-concluido { background: #e6f7ee; color: var(--cor-sucesso); }
