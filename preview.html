@@ -336,6 +336,31 @@
             </div>
             <div id="pendenciaNomesVazia" class="vazio" hidden>Nenhum nome fora do padrão. 🎉</div>
           </div>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Colaboradores ativos com supervisor inativo</h3></div>
+            <p style="color:var(--cor-texto-sec); font-size:12px; margin:-8px 0 12px;">
+              Colaborador ativo cujo supervisor (Nome superior) consta na planilha como Desligado ou Inativo — precisa de um novo supervisor no cadastro.
+            </p>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Cargo</th><th>Supervisor</th><th>Situação do supervisor</th></tr></thead>
+                <tbody id="pendenciaSupervisorCorpo"></tbody>
+              </table>
+            </div>
+            <div id="pendenciaSupervisorVazia" class="vazio" hidden>Nenhum colaborador ativo com supervisor inativo. 🎉</div>
+          </div>
+
+          <div class="secao">
+            <div class="secao-header"><h3 style="margin:0;">Colaboradores ativos sem CPF</h3></div>
+            <div class="tabela-scroll">
+              <table>
+                <thead><tr><th>Nome</th><th>Unidade</th><th>Departamento</th><th>Cargo</th><th>E-mail</th></tr></thead>
+                <tbody id="pendenciaCpfCorpo"></tbody>
+              </table>
+            </div>
+            <div id="pendenciaCpfVazia" class="vazio" hidden>Nenhum colaborador ativo sem CPF. 🎉</div>
+          </div>
         </div>
       </div>
 
