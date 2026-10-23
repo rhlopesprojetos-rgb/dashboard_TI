@@ -869,14 +869,14 @@ function exportarCsv() {
 
 // ------------------------- PENDÊNCIA INTRA (cadastro de colaboradores) -------------------------
 
-let pendenciaCadastroDados = { cadastroIncompleto: [], desligadosPendentes: [], nomesForaPadrao: [] };
+let pendenciaCadastroDados = { cadastroIncompleto: [], desligadosPendentes: [], nomesForaPadrao: [], supervisorInativo: [], semCpf: [] };
 
 async function carregarPendenciasCadastro() {
   mostrarCarregando(true);
   try {
     const resp = await chamarBackend({ action: 'listarPendenciasCadastro' });
     if (!resp.success) { alert(resp.message || 'Não foi possível carregar as pendências de cadastro.'); return; }
-    pendenciaCadastroDados = resp.pendencias || { cadastroIncompleto: [], desligadosPendentes: [], nomesForaPadrao: [] };
+    pendenciaCadastroDados = resp.pendencias || { cadastroIncompleto: [], desligadosPendentes: [], nomesForaPadrao: [], supervisorInativo: [], semCpf: [] };
     renderizarPendenciaIntra();
   } catch (err) {
     alert('Erro de conexão ao carregar as pendências de cadastro.');
@@ -887,11 +887,15 @@ async function carregarPendenciasCadastro() {
 
 function renderizarPendenciaIntra() {
   const { cadastroIncompleto, desligadosPendentes, nomesForaPadrao } = pendenciaCadastroDados;
+  const supervisorInativo = pendenciaCadastroDados.supervisorInativo || [];
+  const semCpf = pendenciaCadastroDados.semCpf || [];
 
   document.getElementById('kpisPendenciaIntra').innerHTML = `
     <div class="card-resumo"><div class="rotulo">Cadastro Incompleto (Ativos)</div><div class="valor vermelho">${cadastroIncompleto.length}</div></div>
     <div class="card-resumo"><div class="rotulo">Desligados sem Justificativa</div><div class="valor vermelho">${desligadosPendentes.length}</div></div>
     <div class="card-resumo"><div class="rotulo">Nomes Fora do Padrão</div><div class="valor laranja">${nomesForaPadrao.length}</div></div>
+    <div class="card-resumo"><div class="rotulo">Ativos com Supervisor Inativo</div><div class="valor vermelho">${supervisorInativo.length}</div></div>
+    <div class="card-resumo"><div class="rotulo">Ativos sem CPF</div><div class="valor vermelho">${semCpf.length}</div></div>
   `;
 
   document.getElementById('pendenciaCadastroCorpo').innerHTML = cadastroIncompleto.map((c, i) => `
@@ -928,6 +932,29 @@ function renderizarPendenciaIntra() {
     </tr>
   `).join('');
   document.getElementById('pendenciaNomesVazia').hidden = nomesForaPadrao.length > 0;
+
+  document.getElementById('pendenciaSupervisorCorpo').innerHTML = supervisorInativo.map(c => `
+    <tr>
+      <td>${escapeHtml(c.nome)}</td>
+      <td>${escapeHtml(c.unidade)}</td>
+      <td>${escapeHtml(c.departamento)}</td>
+      <td>${escapeHtml(c.cargo)}</td>
+      <td>${escapeHtml(c.supervisor)}</td>
+      <td><span class="badge badge-cancelado">${escapeHtml(c.situacaoSupervisor)}</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('pendenciaSupervisorVazia').hidden = supervisorInativo.length > 0;
+
+  document.getElementById('pendenciaCpfCorpo').innerHTML = semCpf.map(c => `
+    <tr>
+      <td>${escapeHtml(c.nome)}</td>
+      <td>${escapeHtml(c.unidade)}</td>
+      <td>${escapeHtml(c.departamento)}</td>
+      <td>${escapeHtml(c.cargo)}</td>
+      <td>${escapeHtml(c.email || '—')}</td>
+    </tr>
+  `).join('');
+  document.getElementById('pendenciaCpfVazia').hidden = semCpf.length > 0;
 }
 
 async function salvarJustificativaCadastro(chave, nome, camposFaltando, indice) {
