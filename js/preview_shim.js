@@ -19,6 +19,12 @@ const PENDENCIAS_MOCK = {
   nomesForaPadrao: [
     { nome: 'joyce silva', unidade: 'GRUPO LOPES  MT', departamento: 'Logística' },
     { nome: 'CARLOS DA SILVA', unidade: 'GRUPO LOPES  MS', departamento: 'Comercial' }
+  ],
+  supervisorInativo: [
+    { nome: 'Ana Souza', unidade: 'GRUPO LOPES  MS', departamento: 'Comercial', cargo: 'Vendedor', supervisor: 'Carlos Mendes', situacaoSupervisor: 'Desligado' }
+  ],
+  semCpf: [
+    { nome: 'Pedro Lima', unidade: 'GRUPO LOPES  MT', departamento: 'Logística', cargo: 'Conferente', email: 'pedro.lima@exemplo.com' }
   ]
 };
 
